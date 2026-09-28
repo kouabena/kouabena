@@ -1,0 +1,4 @@
+F1 ndata_used 6436 chi2 4.247 rms 8.408 mrad median|res| 3.46 mrad
+F2 ndata_used 6456 chi2 4.493 rms 9.176 mrad median|res| 2.48 mrad
+F3 ndata_used 6026 chi2 4.659 rms 8.620 mrad median|res| 2.69 mrad
+F4 ndata_used 6384 chi2 4.648 rms 8.236 mrad median|res| 2.89 mrad
