@@ -119,14 +119,18 @@ def main():
     if IP_ONLY:
         # rebuild the forward operator at the saved resistivity model
         res = np.load(out / "res.npy")
-        mgr.fop.ensureContent()        # builds the P2 forward mesh
-        pd_mesh = mgr.fop.paraDomain
+        t0 = time.time()
+        # zero-iteration run: same operator setup as a normal inversion,
+        # evaluates the response of the saved model without updating it
+        mgr.invert(startModel=res, maxIter=0, lam=C.LAM_DC,
+                   zWeight=C.ZWEIGHT, verbose=True)
+        pd_mesh = mgr.paraDomain
         assert np.array_equal(np.array(pd_mesh.cellMarkers()),
                               np.arange(pd_mesh.cellCount())), \
             "parameter order differs from cell order"
-        model = pg.Vector(res)
-        t0 = time.time()
-        response = mgr.fop.response(model)
+        model = mgr.inv.model
+        assert np.allclose(np.array(model), res), "model changed"
+        response = mgr.inv.response
         saved = np.load(out / "rhoa_response.npy")
         print("response vs. saved: max rel. diff "
               f"{np.max(np.abs(np.array(response) / saved - 1)):.2e}")
