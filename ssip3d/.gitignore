@@ -5,3 +5,5 @@ results/test/
 __pycache__/
 *.npy
 results/paraDomain.bms
+negResp*
+resp*.vec
