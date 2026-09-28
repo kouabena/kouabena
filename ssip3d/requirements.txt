@@ -1,0 +1,6 @@
+pygimli==1.6.1
+numpy
+scipy
+pandas
+matplotlib
+# TetGen executable must be on PATH (e.g. apt install tetgen, or conda-forge tetgen)

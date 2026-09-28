@@ -1,0 +1,7 @@
+raw
+work/*
+!work/ssip3d.dat
+results/test/
+__pycache__/
+*.npy
+results/paraDomain.bms
