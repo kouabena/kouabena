@@ -119,6 +119,7 @@ def main():
     if IP_ONLY:
         # rebuild the forward operator at the saved resistivity model
         res = np.load(out / "res.npy")
+        mgr.fop.ensureContent()        # builds the P2 forward mesh
         pd_mesh = mgr.fop.paraDomain
         assert np.array_equal(np.array(pd_mesh.cellMarkers()),
                               np.arange(pd_mesh.cellCount())), \
