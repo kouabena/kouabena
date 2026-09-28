@@ -13,6 +13,7 @@ one 3D phase (IP) model per frequency.
 | `01_prepare_data.py` | merge the 3 lines × 4 frequencies, QC, select data, write `work/ssip3d.dat` |
 | `02_make_mesh.py`, `meshing.py` | 3D tetrahedral mesh draped on topography |
 | `03_invert.py` | resistivity inversion, then phase inversion at F1–F4 |
+| `flag_outliers.py`, `outliers_pass1.csv` | data misfit by > 5σ in pass 1, removed in pass 2 |
 | `04_export_results.py` | VTK/CSV export and figures |
 | `work/ssip3d.dat` | the selected 3D dataset (pyGIMLi unified data format) |
 | `results/` | models, figures, logs (see *Results*) |
@@ -53,8 +54,9 @@ all four steps. See *Georeferencing* below.
   positions (topography included). The sign of R follows the geometric factor.
   In the inversion k cancels (ρa,obs / ρa,pred = R_obs / R_pred), so its
   choice does not affect the model.
-* QC removes: dipoles straddling the current electrode, zero values, and data
-  whose reported error is above 10 %.
+* QC removes: dipoles straddling the current electrode, zero values, data
+  whose reported error is above 10 %, four unreliable off-end transmitters
+  (`config.EXCLUDE_TX`), and the pass-1 outliers (see *Results*).
 * **Removing redundancy.** With all-pairs recording, every dipole of one
   injection is a sum of adjacent 40 m dipoles, so 166k values per frequency
   contain far less independent information than their number suggests. They
@@ -63,11 +65,11 @@ all four steps. See *Georeferencing* below.
   current electrode, with L = 40·2^j m the shortest length ≥ offset / 8 (so
   n ≤ 8, and L ≤ 320 m). This gives short dipoles near the source and long
   dipoles (better signal) far from it, and keeps full lateral and offset
-  coverage: **8 640 data** (L22 2 748, L24 3 023, L26 2 869), each with ρa and
-  4 phases.
+  coverage. Offsets start at 60 m. Final dataset: **7 819 data** (L22 2 404,
+  L24 2 800, L26 2 615), each with ρa and 4 phases.
 * Error model: resistivity max(reported, 5 %). Phase: reported + 1 mrad + 5 %
-  of |φ|. Phases with |φ| > 150 mrad or a reported error > 10 mrad are
-  excluded.
+  of |φ|. Phases outside −20 … 150 mrad or with a reported error > 10 mrad
+  are excluded.
 
 ### 3. Mesh (`02_make_mesh.py`)
 * Unstructured tetrahedra (TetGen). The parameter domain extends 100 m beyond
@@ -84,16 +86,17 @@ all four steps. See *Georeferencing* below.
 * **Accuracy check.** A homogeneous half-space was modelled on a flat mesh of
   the same design (total field, no singularity removal) and compared with the
   analytic solution. Median error is 3 %, 95th percentile 6.3 %; the largest
-  errors are at 20 m offsets (≈ −9 %). The 5 % error floor accounts for this.
+  errors are at 20 m offsets (≈ −9 %), which are excluded in the final
+  pass. The 5 % error floor accounts for the rest.
   With topography the homogeneous response varies by ±20–40 %. This is a real
   topographic effect, and the 3D inversion models it.
-* 51 509 parameter cells.
+* 50 717 parameter cells (final mesh).
 
 ### 4. Inversion (`03_invert.py`)
 * **Resistivity:** Gauss–Newton inversion of log ρa for log ρ with first-order
   smoothness (λ = 20, vertical/horizontal weight 0.3) and robust (IRLS, L1-type)
   data weighting against outliers. Starting model: homogeneous, at the median
-  ρa. 8 iterations.
+  ρa. At most 8 iterations (stops at χ² < 1).
 * **Phase (IP), F1–F4:** for small phases, the apparent phase is the
   sensitivity-weighted average of the intrinsic phases:
   φa = J_log · φ, with J_log = ∂ ln ρa / ∂ ln ρ at the final resistivity model
@@ -121,7 +124,64 @@ all four steps. See *Georeferencing* below.
   practical depth-of-investigation guide, not a formal DOI.
 
 ## Results
-_Filled in after the run: see below._
+
+### Processing history (two passes)
+1. **Pass 1:** 8 640 data with 20 m minimum offset and all transmitters.
+   It converged to a robust-weighted χ² = 1.1, but 8 % of the data (708) were
+   misfit by > 5σ. The misfits clustered at offsets ≤ 100 m (29 % of
+   those data; forward-modelling error and near-surface heterogeneity below
+   the cell size) and on four off-end transmitters whose positions are
+   uncertain: L22 −640 m and −160 m, L24 −160 m (100 % misfit), L26 −185 m.
+2. **Pass 2 (final):** those four transmitters removed, minimum offset 60 m,
+   pass-1 outliers removed (`outliers_pass1.csv`), which leaves **7 819 data**.
+   Phases below −20 mrad (EM coupling or noise, increasing with frequency)
+   are also excluded from the IP inversion.
+
+### Data fit (pass 2)
+| | data used | χ² (robust) | χ² (plain) | fit |
+|---|---|---|---|---|
+| Resistivity | 7 819 | 0.88 | 3.95 | rel. RMS 10.8 % |
+| Phase F1 0.156 Hz | 6 436 | – | 4.25 | median abs. residual 3.5 mrad, RMS 8.4 mrad |
+| Phase F2 0.406 Hz | 6 456 | – | 4.49 | 2.5 mrad, RMS 9.2 mrad |
+| Phase F3 0.656 Hz | 6 026 | – | 4.66 | 2.7 mrad, RMS 8.6 mrad |
+| Phase F4 0.906 Hz | 6 384 | – | 4.65 | 2.9 mrad, RMS 8.2 mrad |
+
+The resistivity χ² history is 107 → 69 → 14.6 → 6.8 → 2.9 → 1.5 → 0.88
+(stopped at χ² < 1). The IP misfit is mostly a long tail of noisy phases,
+which robust weighting down-weights. The bulk fits within about 3 mrad
+(`fig_data_fit.png`).
+
+### Models
+* Resistivity 30 – 3 150 Ω·m, median 257 Ω·m. Intrinsic phase (5 / 50 /
+  95 %): about 8 / 13 / 33 mrad at all four frequencies.
+* **Resistive core** (> 800 Ω·m) under the ridge at x ≈ 1300 – 1800 m, from
+  about 50 m below surface to the base of resolution (≈ −350 m a.s.l.). It
+  is continuous across all three lines and strongest on L24–L26.
+* **Conductive zone** (≈ 60 – 150 Ω·m) at x ≈ 2000 – 2300 m, from about
+  −50 to −300 m a.s.l., on L22 and L24 and weaker on L26. Low-resistivity
+  cover (100 – 200 Ω·m) lies over the western half (x < 1000 m).
+* **Chargeable zone** (phase > 40 – 50 mrad) at depth under x ≈ 700 – 1500 m.
+  Its top rises from about −250 m a.s.l. on L22 to about −100 m on
+  L24–L26 (i.e. it shallows northwards / towards L26). It sits on the
+  western flank and below the resistive core. A second chargeable zone lies
+  at depth under x ≈ 2000 – 2400 m, beneath the conductive zone. The
+  resistive, weakly chargeable core flanked by a chargeable halo is the
+  pattern expected around a porphyry system (silicified / potassic core,
+  pyrite-rich phyllic shell). This is an interpretation to test against
+  geology and drilling.
+* The phase models at F1–F4 are very similar (`fig_phase_spectrum.png`).
+  Over 0.16 – 0.9 Hz the phase spectrum is nearly flat, so this band does
+  little to discriminate grain size or mineralogy. The ratios between
+  frequencies are best examined in the exported models, not the sections.
+
+### Caveats specific to these results
+* The deepest high-phase values sit at the bottom edge of the resolved
+  volume, where the log-transformed phase inversion can overshoot. Their
+  depth extent and amplitude are uncertain; their top and lateral position
+  are better constrained. A DOI test (two inversions with different
+  reference models) is recommended before interpreting depth extent.
+* The between-line sections (y = 100 m, 300 m) are interpolation constrained
+  by smoothness, not by cross-line data.
 
 ## Reproducing
 
@@ -131,7 +191,9 @@ pip install -r requirements.txt        # plus the TetGen executable on PATH
 ln -s "/path/to/SSIP DATA INVERSION" raw
 python 01_prepare_data.py   # seconds
 python 02_make_mesh.py      # < 1 min
-python 03_invert.py         # ≈ 1 h on 4 cores, ≈ 7 GB RAM
+python flag_outliers.py      # only when re-doing pass 1 -> pass 2
+python 03_invert.py         # ≈ 30 min DC + ≈ 65 min IP on 4 cores, ≈ 7 GB RAM
+python 03_invert.py --ip-only   # redo only the phase inversions
 python 04_export_results.py
 ```
 

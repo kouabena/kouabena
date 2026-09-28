@@ -7,3 +7,5 @@ __pycache__/
 results/paraDomain.bms
 negResp*
 resp*.vec
+results/pass1/*
+!results/pass1/dc_log.txt
