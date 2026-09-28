@@ -31,7 +31,15 @@ DC_FREQ = "F1"   # lowest frequency is used for the resistivity inversion
 RX_SPACING = 40.0          # receiver electrode spacing (m)
 MAX_N = 8.0                # dipole length >= offset / MAX_N (pole-dipole n)
 MAX_DIPOLE = 320.0         # longest dipole kept (m)
-MIN_OFFSET = 20.0          # min. distance Tx -> nearest potential electrode
+MIN_OFFSET = 60.0          # min. distance Tx -> nearest potential electrode
+#   (20 m offsets have the largest forward-modelling error, see README)
+# Transmitters removed after pass 1 (>40 % of their data misfit by >5 sigma;
+# all are off-end injections whose true positions are uncertain).
+EXCLUDE_TX = {"L22": [-640.0, -160.0], "L24": [-160.0], "L26": [-185.0]}
+# Data misfit by more than OUTLIER_SIGMA in the pass-1 inversion are listed in
+# this file by flag_outliers.py and removed in step 1 (if the file exists).
+OUTLIER_FILE = ROOT / "outliers_pass1.csv"
+OUTLIER_SIGMA = 5.0
 MAX_REL_ERR_DC = 0.10      # drop data whose reported error exceeds 10 %
 ERR_FLOOR_DC = 0.05        # error model: max(reported, 5 %); ~p95 of forward error
 MAX_ABS_PHASE = 150.0      # mrad; |phase| above this is treated as noise

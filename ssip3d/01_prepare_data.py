@@ -102,8 +102,16 @@ def main():
         ok = (r_abs > 0) & np.isfinite(k) & (rel_err <= C.MAX_REL_ERR_DC)
         # dipoles straddling the Tx carry no reliable sign/magnitude
         ok &= ~((df.p1x < df.c1x) & (df.p2x > df.c1x))
+        ok &= ~df.c1x.isin(C.EXCLUDE_TX.get(name, []))
         df = df[ok]
         df = select_dipoles(df)
+        if C.OUTLIER_FILE.exists():
+            out = pd.read_csv(C.OUTLIER_FILE)
+            out = out[out.line == name][KEY].assign(_out=True)
+            df = df.merge(out, on=KEY, how="left")
+            n_out = df._out.notna().sum()
+            df = df[df._out.isna()].drop(columns="_out")
+            print(f"{name}: removed {n_out} pass-1 outliers")
         print(f"{name}: {n_all} data -> {ok.sum()} after QC -> "
               f"{len(df)} selected")
         tables.append(df)
