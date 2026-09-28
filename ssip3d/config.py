@@ -42,7 +42,9 @@ OUTLIER_FILE = ROOT / "outliers_pass1.csv"
 OUTLIER_SIGMA = 5.0
 MAX_REL_ERR_DC = 0.10      # drop data whose reported error exceeds 10 %
 ERR_FLOOR_DC = 0.05        # error model: max(reported, 5 %); ~p95 of forward error
-MAX_ABS_PHASE = 150.0      # mrad; |phase| above this is treated as noise
+MAX_ABS_PHASE = 150.0      # mrad; phases above this are treated as noise
+MIN_PHASE = -20.0          # mrad; strongly negative phases (EM coupling/noise)
+#   cannot be fitted by a positive-phase model and are excluded
 MAX_PHASE_ERR = 10.0       # mrad
 PHASE_ERR_FLOOR = 1.0      # mrad absolute floor
 PHASE_ERR_REL = 0.05       # plus 5 % of |phase|
