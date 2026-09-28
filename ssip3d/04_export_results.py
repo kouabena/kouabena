@@ -38,9 +38,19 @@ def load():
     return mesh, m
 
 
-def coverage_mask(cov):
-    """Cells considered resolved: coverage above a data-driven threshold."""
-    thr = np.percentile(cov[np.isfinite(cov)], 25)
+def coverage_mask(cov, cc, depth, sensors):
+    """Cells considered resolved.
+
+    Coverage (log10 of summed absolute log-sensitivity per unit volume)
+    decays steadily with depth. A cell counts as resolved when its coverage
+    is within COVERAGE_DROP decades of the median coverage of the top 25 m
+    beneath the lines. This is a heuristic depth-of-investigation guide.
+    """
+    under = ((depth < 25) & (cc[:, 0] >= sensors[:, 0].min())
+             & (cc[:, 0] <= sensors[:, 0].max())
+             & (cc[:, 1] >= sensors[:, 1].min())
+             & (cc[:, 1] <= sensors[:, 1].max()))
+    thr = np.median(cov[under]) - C.COVERAGE_DROP
     return np.isfinite(cov) & (cov >= thr), thr
 
 
@@ -63,7 +73,7 @@ def main():
     topo = topography(sensors)
     cc = np.array(mesh.cellCenters())
     depth = topo(cc[:, 0], cc[:, 1]) - cc[:, 2]
-    ok, thr = coverage_mask(m["coverage"])
+    ok, thr = coverage_mask(m["coverage"], cc, depth, sensors)
     print(f"coverage threshold (log10) {thr:.2f}: {ok.mean()*100:.0f}% cells kept")
 
     # ---------------- VTK + CSV ----------------------------------------
@@ -94,7 +104,7 @@ def main():
     # common colour limits from resolved cells
     def limits(key, log):
         v = m[key][ok]
-        lo, hi = np.percentile(v, [2, 98])
+        lo, hi = np.percentile(v, [1, 99.5])
         return (lo, hi)
 
     # ---------------- depth slices -------------------------------------
@@ -131,7 +141,7 @@ def main():
         plt.close(fig)
 
     # ---------------- vertical sections --------------------------------
-    zg = np.arange(-450, 220, 5.0)
+    zg = np.arange(-500, 220, 5.0)
     XS, ZS = np.meshgrid(xg, zg)
 
     def section(f, y, log):

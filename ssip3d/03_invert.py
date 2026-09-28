@@ -117,7 +117,7 @@ def main():
         start = max(np.median(phi[ok]), 1.0)
         phase = inv.run(phi, absoluteError=err, relativeError=0.0,
                         lam=C.LAM_IP, robustData=True,
-                        startModel=start, maxIter=2 if TEST else 10)
+                        startModel=start, maxIter=2 if TEST else C.MAX_ITER_IP)
         resp = np.array(inv.response)
         rms = np.sqrt(np.mean((resp[ok] - phi[ok]) ** 2))
         chi2 = np.mean(((resp[ok] - phi[ok]) / err[ok]) ** 2)

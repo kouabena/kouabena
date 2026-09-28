@@ -61,3 +61,7 @@ LAM_DC = 20.0
 ZWEIGHT = 0.3              # vertical/horizontal smoothness ratio
 MAX_ITER_DC = 8
 LAM_IP = 30.0
+MAX_ITER_IP = 5
+
+# --- Display -----------------------------------------------------------------
+COVERAGE_DROP = 2.25       # decades below near-surface coverage = 'resolved'
