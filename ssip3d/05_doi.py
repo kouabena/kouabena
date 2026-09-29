@@ -48,6 +48,11 @@ def scale_smallness(inv, n_cells):
     return w
 
 
+def set_reference(inv, ref):
+    """Reference model for the smallness term, independent of the start."""
+    inv.inv.setReferenceModel(pg.Vector(ref))
+
+
 def check_weights(inv, w):
     """Fail loudly if pyGIMLi replaced the constraint weights."""
     used = np.array(inv.inv.cWeight())
@@ -74,14 +79,20 @@ def run_dc():
     mesh = pg.load(str(C.WORK_DIR / "mesh.bms"))
     pd_mesh = pg.load(str(C.RESULTS_DIR / "paraDomain.bms"))
     rho0 = float(np.median(data["rhoa"]))
+    start = np.load(C.RESULTS_DIR / "res.npy")
+    if TEST:
+        start = np.full(pd_mesh.cellCount(), rho0)
     for tag, fac in FACTORS.items():
         t0 = time.time()
         mgr = inv3.make_manager(data, mesh)
         ref = np.full(pd_mesh.cellCount(), rho0 * fac)
-        kw = dict(startModel=ref, isReference=True, lam=C.LAM_DC,
-                  verbose=True)
+        # start from the final (data-fitting) model; the reference enters
+        # only through the regularization. Starting at the reference itself
+        # (10x off the background) converged far too slowly.
+        kw = dict(startModel=start, lam=C.LAM_DC, verbose=True)
         mgr.invert(cType=10, zWeight=C.ZWEIGHT, maxIter=0, **kw)   # set-up
         w = scale_smallness(mgr.inv, pd_mesh.cellCount())
+        set_reference(mgr.inv, ref)
         # dPhi=0: the default "<2 % improvement" stop is unreliable with
         # robust reweighting (it stopped a run whose chi2 fell 37 %/iter)
         mgr.inv.run(mgr.inv.dataVals, mgr.inv.errorVals, robustData=True,
@@ -116,6 +127,8 @@ def run_ip(fk="F1"):
                                  mgr.inv.response, mgr.inv.model)
     phi, err, ok = inv3.phase_errors(data, fk)
     phi0 = max(float(np.median(phi[ok])), 1.0)
+    start = (np.full(pd_mesh.cellCount(), phi0) if TEST
+             else np.load(C.RESULTS_DIR / f"phase_{fk}.npy"))
     for tag, fac in FACTORS.items():
         t0 = time.time()
         inv = pg.Inversion(fop=fop, verbose=True)
@@ -123,10 +136,11 @@ def run_ip(fk="F1"):
         inv.dataTrans = pg.trans.Trans()
         inv.modelTrans = pg.trans.TransLogLU(0.01, 500.0)
         ref = np.full(pd_mesh.cellCount(), phi0 * fac)
-        kw = dict(absoluteError=err, relativeError=0.0, startModel=ref,
-                  isReference=True, lam=C.LAM_IP)
+        kw = dict(absoluteError=err, relativeError=0.0, startModel=start,
+                  lam=C.LAM_IP)
         inv.run(phi, cType=10, maxIter=0, **kw)                     # set-up
         w = scale_smallness(inv, pd_mesh.cellCount())
+        set_reference(inv, ref)
         model = inv.run(phi, robustData=True, dPhi=0.0,
                         maxIter=2 if TEST else C.DOI_MAX_ITER_IP, **kw)
         check_weights(inv, w)
