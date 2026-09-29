@@ -95,8 +95,13 @@ def run_dc():
         set_reference(mgr.inv, ref)
         # dPhi=0: the default "<2 % improvement" stop is unreliable with
         # robust reweighting (it stopped a run whose chi2 fell 37 %/iter)
+        # fixed number of iterations: no dPhi stop and no stop at chi2 < 1,
+        # so the model reaches the minimum of the regularized objective and
+        # insensitive cells relax to the reference (stopping at chi2 < 1
+        # after 3 iterations left R ~ 0.001 everywhere)
         mgr.inv.run(mgr.inv.dataVals, mgr.inv.errorVals, robustData=True,
-                    dPhi=0.0, maxIter=1 if TEST else C.DOI_MAX_ITER, **kw)
+                    dPhi=0.0, stopAtChi1=False,
+                    maxIter=1 if TEST else C.DOI_MAX_ITER, **kw)
         check_weights(mgr.inv, w)
         assert mgr.paraDomain.cellCount() == pd_mesh.cellCount()
         np.save(OUT / f"doi_res_{tag}.npy", np.array(mgr.model))
@@ -141,7 +146,7 @@ def run_ip(fk="F1"):
         inv.run(phi, cType=10, maxIter=0, **kw)                     # set-up
         w = scale_smallness(inv, pd_mesh.cellCount())
         set_reference(inv, ref)
-        model = inv.run(phi, robustData=True, dPhi=0.0,
+        model = inv.run(phi, robustData=True, dPhi=0.0, stopAtChi1=False,
                         maxIter=2 if TEST else C.DOI_MAX_ITER_IP, **kw)
         check_weights(inv, w)
         np.save(OUT / f"doi_phase_{fk}_{tag}.npy", np.array(model))
