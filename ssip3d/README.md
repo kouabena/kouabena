@@ -112,16 +112,42 @@ all four steps. See *Georeferencing* below.
   17.4 mrad at F1–F4.
 
 ### 5. Outputs (`04_export_results.py`)
-* `results/ssip3d_model.vtk`: open in **ParaView** (threshold on `resolved`,
-  slice, contour). Cell data: `resistivity`, `log10_resistivity`,
-  `phase_F1_mrad` … `phase_F4_mrad`, `coverage_log10`, `resolved`, `depth`.
+* `results/ssip3d_model.vtk`: open in **ParaView** (threshold on
+  `doi_res_index` / `doi_phase_F1_index` < 0.2, slice, contour). Cell data:
+  `resistivity`, `log10_resistivity`, `phase_F1_mrad` … `phase_F4_mrad`,
+  `doi_res_index`, `doi_phase_F1_index`, `coverage_log10`,
+  `resolved_coverage`, `depth`.
 * `results/ssip3d_model_cells.csv`: cell centres (x, y, z, depth) with all
   properties, for Voxler, Leapfrog, Oasis montaj, Surfer, etc.
 * Figures: depth slices, sections along and between the lines, phase at the 4
-  frequencies, data fit.
-* `resolved` = coverage (sum of absolute log sensitivities per cell volume)
-  above its 25th percentile. The figures blank out cells below it. This is a
-  practical depth-of-investigation guide, not a formal DOI.
+  frequencies, DOI index sections, data fit. Resistivity is blanked where
+  its normalized DOI index ≥ 0.2, and all phase figures are blanked where the
+  F1 phase DOI index ≥ 0.2 (the F1 DOI is used for all four frequencies).
+* `resolved_coverage` is the earlier, simpler guide: coverage within 2.25
+  decades of the near-surface coverage. It is kept for comparison only.
+
+### 6. Depth of investigation (`05_doi.py`)
+DOI index after Oldenburg & Li (1999), for resistivity and for the F1 phase:
+* Each property is inverted twice more, with homogeneous reference models at
+  0.1× and 10× the background (median ρa = 392 Ω·m → 39 / 3 920 Ω·m; median
+  phase 18.8 mrad → 1.88 / 188 mrad). The regularization is first-order
+  smoothness plus a smallness term α_s·√(V_i / V_median)·(m − m_ref), with
+  α_s = 0.03 (pyGIMLi `cType = 10` with rescaled weights). The volume
+  weighting is the discrete form of Oldenburg & Li's volume integral.
+* R = |ln m₁ − ln m₂| / |ln m_ref1 − ln m_ref2|, normalized by its 99.9th
+  percentile (Oldenburg & Li 1999; Marescot et al. 2003, *Geophys. Prosp.*).
+  Cells with R̂ < 0.2 are treated as data-controlled (0.1 is the stricter
+  bound).
+* Both DOI runs start from the final model and iterate until the total
+  objective stops decreasing. Data fits (plain χ²): resistivity 5.3 and
+  8.0 (main model 3.95); phase F1 11.0 and 10.7 (main model 4.25). The pairs
+  fit comparably, so R reflects the data, not a difference in fit.
+* Settings that were tried and rejected (see git history):
+  - Uniform smallness weights. 0.01 and 0.03 left deep cells tied to their
+    neighbours by smoothness (R ≈ 0.01 even at 700 m depth); 1.0 overrode
+    the data (χ² = 119).
+  - Starting from the reference itself (10× from the background).
+    Convergence was too slow.
 
 ## Results
 
@@ -154,32 +180,58 @@ which robust weighting down-weights. The bulk fits within about 3 mrad
 ### Models
 * Resistivity 30 – 3 150 Ω·m, median 257 Ω·m. Intrinsic phase (5 / 50 /
   95 %): about 8 / 13 / 33 mrad at all four frequencies.
+* **Depth of investigation (DOI test):**
+
+  | Depth below surface | Resistivity median R̂ | Phase F1 median R̂ |
+  |---|---|---|
+  | 0 – 100 m | 0.08 | 0.22 |
+  | 100 – 200 m | 0.08 | 0.26 |
+  | 200 – 300 m | 0.13 | 0.46 |
+  | 300 – 400 m | 0.14 | 0.65 |
+  | 400 – 500 m | 0.22 | 0.71 |
+  | 500 – 800 m | 0.43 – 0.46 | 0.78 – 0.80 |
+
+  The resistivity model is data-controlled to about **400 – 450 m** below
+  surface. The phase model only to about **150 – 250 m**, and only between
+  x ≈ 300 and 2150 m (`fig_doi_sections.png`), because the phase data are
+  much noisier (≈ 20 % relative error, against 5 % for resistivity).
 * **Resistive core** (> 800 Ω·m) under the ridge at x ≈ 1300 – 1800 m, from
-  about 50 m below surface to the base of resolution (≈ −350 m a.s.l.). It
-  is continuous across all three lines and strongest on L24–L26.
-* **Conductive zone** (≈ 60 – 150 Ω·m) at x ≈ 2000 – 2300 m, from about
-  −50 to −300 m a.s.l., on L22 and L24 and weaker on L26. Low-resistivity
-  cover (100 – 200 Ω·m) lies over the western half (x < 1000 m).
-* **Chargeable zone** (phase > 40 – 50 mrad) at depth under x ≈ 700 – 1500 m.
-  Its top rises from about −250 m a.s.l. on L22 to about −100 m on
-  L24–L26 (i.e. it shallows northwards / towards L26). It sits on the
-  western flank and below the resistive core. A second chargeable zone lies
-  at depth under x ≈ 2000 – 2400 m, beneath the conductive zone. The
-  resistive, weakly chargeable core flanked by a chargeable halo is the
-  pattern expected around a porphyry system (silicified / potassic core,
-  pyrite-rich phyllic shell). This is an interpretation to test against
-  geology and drilling.
+  about 50 m below surface to about −350 m a.s.l. It is resolved, continuous
+  across all three lines, and strongest on L24–L26.
+* **Conductive zone** (≈ 60 – 150 Ω·m) at x ≈ 2000 – 2300 m on L22 and L24,
+  weaker on L26. Its top (about −50 m a.s.l.) is resolved. Its centre below
+  about −150 m has R̂ > 0.2, so its depth extent is not constrained. Poor
+  resolution beneath a conductor is expected, since the current channels
+  through it. Low-resistivity cover (100 – 200 Ω·m) lies over the western
+  half (x < 1000 m).
+* **Chargeable zone** (phase > 30 mrad in the resolved volume) at
+  x ≈ 1100 – 1300 m. It is strongest on L22 and between L22 and L24, with
+  its top at about 0 to −50 m a.s.l. (≈ 150 m below surface). It is weaker
+  on L24 and fades on L26. The higher phases below it (up to > 50 mrad at
+  200 – 450 m depth) lie where the phase DOI index is 0.5 – 0.7, i.e. **not
+  resolved**. Its depth extent, amplitude and any northward trend are not
+  constrained by these data. A second, resolved anomaly (20 – 30 mrad) sits
+  at x ≈ 1900 – 2150 m on L24, at −50 to −200 m a.s.l., next to the conductive
+  zone.
+* **Porphyry interpretation.** A resistive, weakly chargeable core with a
+  chargeable zone on its western flank fits a porphyry pattern (silicified /
+  potassic core, pyrite-rich phyllic shell). Only the top of the chargeable
+  zone is resolved. Its extent at depth would need deeper-reaching IP
+  (longer offsets, more stacking or lower noise) or drilling to confirm.
 * The phase models at F1–F4 are very similar (`fig_phase_spectrum.png`).
   Over 0.16 – 0.9 Hz the phase spectrum is nearly flat, so this band does
   little to discriminate grain size or mineralogy. The ratios between
   frequencies are best examined in the exported models, not the sections.
 
 ### Caveats specific to these results
-* The deepest high-phase values sit at the bottom edge of the resolved
-  volume, where the log-transformed phase inversion can overshoot. Their
-  depth extent and amplitude are uncertain; their top and lateral position
-  are better constrained. A DOI test (two inversions with different
-  reference models) is recommended before interpreting depth extent.
+* The phase model is resolved only to ≈ 150 – 250 m below surface (DOI
+  test). Deeper phase values are shaped by the regularization, not the
+  data.
+* The DOI index depends on the regularization choices (α_s, volume
+  weighting, the 99.9th-percentile normalization). The 0.2 cutoff is a
+  common convention, not a physical threshold. The depth trend and the
+  resistivity/phase contrast are robust; exact contour depths are
+  approximate.
 * The between-line sections (y = 100 m, 300 m) are interpolation constrained
   by smoothness, not by cross-line data.
 
@@ -194,6 +246,8 @@ python 02_make_mesh.py      # < 1 min
 python flag_outliers.py      # only when re-doing pass 1 -> pass 2
 python 03_invert.py         # ≈ 30 min DC + ≈ 65 min IP on 4 cores, ≈ 7 GB RAM
 python 03_invert.py --ip-only   # redo only the phase inversions
+python 05_doi.py dc && python 05_doi.py ip && python 05_doi.py index
+                            # DOI test: ≈ 35 min + ≈ 50 min
 python 04_export_results.py
 ```
 

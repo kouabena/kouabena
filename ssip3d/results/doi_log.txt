@@ -1,0 +1,28 @@
+dc lo ref 39.2 ohmm chi2 5.247 history 3.95 4.13 2.78 2.31 time 16.1 min
+dc hi ref 3917.3 ohmm chi2 8.006 history 3.95 4.88 3.85 3.44 time 15.6 min
+resistivity: normalized DOI index, cutoff 0.2
+  depth 0-100 m: median 0.083, 77% cells < 0.2, 57% < 0.1
+  depth 100-200 m: median 0.076, 76% cells < 0.2, 59% < 0.1
+  depth 200-300 m: median 0.133, 62% cells < 0.2, 40% < 0.1
+  depth 300-400 m: median 0.140, 59% cells < 0.2, 38% < 0.1
+  depth 400-500 m: median 0.222, 43% cells < 0.2, 12% < 0.1
+  depth 500-600 m: median 0.425, 2% cells < 0.2, 0% < 0.1
+  depth 600-800 m: median 0.463, 0% cells < 0.2, 0% < 0.1
+ip F1 lo ref 1.88 mrad chi2 11.012 time 21.6 min
+ip F1 hi ref 187.59 mrad chi2 10.744 time 15.0 min
+resistivity: normalized DOI index, cutoff 0.2
+  depth 0-100 m: median 0.083, 77% cells < 0.2, 57% < 0.1
+  depth 100-200 m: median 0.076, 76% cells < 0.2, 59% < 0.1
+  depth 200-300 m: median 0.133, 62% cells < 0.2, 40% < 0.1
+  depth 300-400 m: median 0.140, 59% cells < 0.2, 38% < 0.1
+  depth 400-500 m: median 0.222, 43% cells < 0.2, 12% < 0.1
+  depth 500-600 m: median 0.425, 2% cells < 0.2, 0% < 0.1
+  depth 600-800 m: median 0.463, 0% cells < 0.2, 0% < 0.1
+phase F1: normalized DOI index, cutoff 0.2
+  depth 0-100 m: median 0.223, 48% cells < 0.2, 39% < 0.1
+  depth 100-200 m: median 0.260, 39% cells < 0.2, 21% < 0.1
+  depth 200-300 m: median 0.462, 9% cells < 0.2, 4% < 0.1
+  depth 300-400 m: median 0.645, 0% cells < 0.2, 0% < 0.1
+  depth 400-500 m: median 0.709, 1% cells < 0.2, 0% < 0.1
+  depth 500-600 m: median 0.780, 1% cells < 0.2, 0% < 0.1
+  depth 600-800 m: median 0.798, 1% cells < 0.2, 0% < 0.1
