@@ -22,6 +22,7 @@ from meshing import topography
 
 CMAP_RES = "viridis"      # log10 resistivity
 CMAP_PHASE = "inferno"    # phase (mrad)
+CMAP_DOI = "cividis"      # DOI index (0 = data-controlled, 1 = reference)
 DEPTHS = [25, 75, 150, 250, 400]            # m below surface
 X_LIM = (-100, 2500)                         # plotted x range (m)
 Y_LIM = (-100, 500)
@@ -35,6 +36,9 @@ def load():
         f = R / f"phase_{fk}.npy"
         if f.exists():
             m[f"phase_{fk}"] = np.load(f)
+    for key in ("doi_res", "doi_phase_F1"):       # from 05_doi.py
+        if (R / f"{key}.npy").exists():
+            m[key] = np.load(R / f"{key}.npy")
     return mesh, m
 
 
@@ -73,15 +77,28 @@ def main():
     topo = topography(sensors)
     cc = np.array(mesh.cellCenters())
     depth = topo(cc[:, 0], cc[:, 1]) - cc[:, 2]
-    ok, thr = coverage_mask(m["coverage"], cc, depth, sensors)
-    print(f"coverage threshold (log10) {thr:.2f}: {ok.mean()*100:.0f}% cells kept")
+    ok_cov, thr = coverage_mask(m["coverage"], cc, depth, sensors)
+    print(f"coverage threshold (log10) {thr:.2f}: "
+          f"{ok_cov.mean()*100:.0f}% cells kept")
+    # "resolved score" per property (>= 0 resolved): DOI index if available
+    # (R < DOI_CUTOFF), otherwise the coverage threshold
+    cov_score = m["coverage"] - thr
+
+    def score_for(key):
+        doi = "doi_res" if key == "res" else "doi_phase_F1"
+        return C.DOI_CUTOFF - m[doi] if doi in m else cov_score
+
+    for doi in ("doi_res", "doi_phase_F1"):
+        if doi in m:
+            print(f"{doi}: {(m[doi] < C.DOI_CUTOFF).mean()*100:.0f}% cells "
+                  f"R < {C.DOI_CUTOFF}")
 
     # ---------------- VTK + CSV ----------------------------------------
     out = pg.Mesh(mesh)
     out["resistivity"] = m["res"]
     out["log10_resistivity"] = np.log10(m["res"])
     out["coverage_log10"] = m["coverage"]
-    out["resolved"] = ok.astype(float)
+    out["resolved_coverage"] = ok_cov.astype(float)
     out["depth"] = depth
     cols = ["x", "y", "z", "depth", "resistivity"]
     table = [cc[:, 0], cc[:, 1], cc[:, 2], depth, m["res"]]
@@ -90,8 +107,13 @@ def main():
             out[f"phase_{fk}_mrad"] = m[f"phase_{fk}"]
             cols.append(f"phase_{fk}_mrad")
             table.append(m[f"phase_{fk}"])
-    cols += ["coverage_log10", "resolved"]
-    table += [m["coverage"], ok.astype(int)]
+    cols += ["coverage_log10", "resolved_coverage"]
+    table += [m["coverage"], ok_cov.astype(int)]
+    for doi in ("doi_res", "doi_phase_F1"):
+        if doi in m:
+            out[f"{doi}_index"] = m[doi]
+            cols.append(f"{doi}_index")
+            table.append(m[doi])
     out.exportVTK(str(C.RESULTS_DIR / "ssip3d_model.vtk"))
     np.savetxt(C.RESULTS_DIR / "ssip3d_model_cells.csv", np.c_[tuple(table)],
                delimiter=",", header=",".join(cols), comments="", fmt="%.4f")
@@ -103,7 +125,7 @@ def main():
 
     # common colour limits from resolved cells
     def limits(key, log):
-        v = m[key][ok]
+        v = m[key][score_for(key) >= 0]
         lo, hi = np.percentile(v, [1, 99.5])
         return (lo, hi)
 
@@ -112,9 +134,9 @@ def main():
     yg = np.arange(Y_LIM[0], Y_LIM[1] + 1, 10.0)
     X, Y = np.meshgrid(xg, yg)
     Zs = topo(X.ravel(), Y.ravel()).reshape(X.shape)
-    cov_f = interpolators(cc, m["coverage"])
     for key, label, cmap, log in props:
         f = interpolators(cc, np.log10(m[key]) if log else m[key])
+        sc_f = interpolators(cc, score_for(key))
         lo, hi = limits(key, log)
         fig, axs = plt.subplots(len(DEPTHS), 1, figsize=(10, 2.1 * len(DEPTHS)),
                                 sharex=True, constrained_layout=True)
@@ -122,7 +144,7 @@ def main():
             P = np.c_[X.ravel(), Y.ravel(), (Zs - d).ravel()]
             V = f(P).reshape(X.shape)
             V = 10 ** V if log else V
-            V = np.ma.masked_where(cov_f(P).reshape(X.shape) < thr, V)
+            V = np.ma.masked_where(sc_f(P).reshape(X.shape) < 0, V)
             im = ax.pcolormesh(X, Y, V, cmap=cmap, shading="auto",
                                norm=LogNorm(lo, hi) if log else None,
                                vmin=None if log else lo,
@@ -144,23 +166,25 @@ def main():
     zg = np.arange(-500, 220, 5.0)
     XS, ZS = np.meshgrid(xg, zg)
 
-    def section(f, y, log):
+    def section(f, y, log, sc_f=None):
         P = np.c_[XS.ravel(), np.full(XS.size, y), ZS.ravel()]
         V = f(P).reshape(XS.shape)
         V = 10 ** V if log else V
-        above = ZS > topo(XS.ravel(), np.full(XS.size, y)).reshape(XS.shape)
-        low = cov_f(P).reshape(XS.shape) < thr
-        return np.ma.masked_where(above | low, V)
+        mask = ZS > topo(XS.ravel(), np.full(XS.size, y)).reshape(XS.shape)
+        if sc_f is not None:
+            mask |= sc_f(P).reshape(XS.shape) < 0
+        return np.ma.masked_where(mask, V)
 
     ys = [y for _, y in C.LINES.values()]
     y_all = sorted(set(ys + [(a + b) / 2 for a, b in zip(ys[:-1], ys[1:])]))
     for key, label, cmap, log in props:
         f = interpolators(cc, np.log10(m[key]) if log else m[key])
+        sc_f = interpolators(cc, score_for(key))
         lo, hi = limits(key, log)
         fig, axs = plt.subplots(len(y_all), 1, figsize=(10, 2.3 * len(y_all)),
                                 sharex=True, constrained_layout=True)
         for ax, y in zip(axs, y_all):
-            im = ax.pcolormesh(XS, ZS, section(f, y, log), cmap=cmap,
+            im = ax.pcolormesh(XS, ZS, section(f, y, log, sc_f), cmap=cmap,
                                shading="auto",
                                norm=LogNorm(lo, hi) if log else None,
                                vmin=None if log else lo,
@@ -187,7 +211,9 @@ def main():
                                 sharex=True, constrained_layout=True)
         for ax, fk in zip(np.atleast_1d(axs), fks):
             f = interpolators(cc, m[f"phase_{fk}"])
-            im = ax.pcolormesh(XS, ZS, section(f, y_mid, False), cmap=CMAP_PHASE,
+            sc_f = interpolators(cc, score_for(f"phase_{fk}"))
+            im = ax.pcolormesh(XS, ZS, section(f, y_mid, False, sc_f),
+                               cmap=CMAP_PHASE,
                                shading="auto", vmin=lo, vmax=hi)
             ax.plot(xg, topo(xg, np.full_like(xg, y_mid)), color="0.2", lw=0.8)
             ax.set_title(f"{fk} = {C.FREQS[fk]:.3f} Hz", fontsize=9, loc="left")
@@ -199,6 +225,37 @@ def main():
         fig.suptitle(f"Middle line (y = {y_mid:.0f} m): phase vs. frequency",
                      fontsize=10)
         fig.savefig(C.RESULTS_DIR / "fig_phase_spectrum.png", dpi=200)
+        plt.close(fig)
+
+    # ---------------- DOI index sections --------------------------------
+    dois = [(k, t) for k, t in (("doi_res", "resistivity"),
+                                ("doi_phase_F1", "phase F1")) if k in m]
+    if dois:
+        fig, axs = plt.subplots(len(ys), len(dois),
+                                figsize=(7.5 * len(dois), 2.4 * len(ys)),
+                                sharex=True, sharey=True, squeeze=False,
+                                constrained_layout=True)
+        for j, (key, title) in enumerate(dois):
+            f = interpolators(cc, m[key])
+            for i, y in enumerate(ys):
+                ax = axs[i, j]
+                V = section(f, y, False)
+                im = ax.pcolormesh(XS, ZS, V, cmap=CMAP_DOI, shading="auto",
+                                   vmin=0, vmax=1)
+                ax.contour(XS, ZS, V.filled(np.nan), levels=[0.1, C.DOI_CUTOFF],
+                           colors=["white", "0.1"], linewidths=[0.8, 1.2])
+                ax.plot(xg, topo(xg, np.full_like(xg, y)), color="0.2", lw=0.8)
+                name = [n for n, (_, yy) in C.LINES.items() if yy == y][0]
+                ax.set_title(f"{title} DOI index, {name}", fontsize=9,
+                             loc="left")
+                ax.set_aspect("equal")
+                ax.set_xlim(*X_LIM)
+                if j == 0:
+                    ax.set_ylabel("Elevation (m)")
+            axs[-1, j].set_xlabel("x, chainage (m)")
+        fig.colorbar(im, ax=axs, shrink=0.6,
+                     label=f"DOI index R (contours 0.1, {C.DOI_CUTOFF})")
+        fig.savefig(C.RESULTS_DIR / "fig_doi_sections.png", dpi=200)
         plt.close(fig)
 
     # ---------------- data fit -----------------------------------------
