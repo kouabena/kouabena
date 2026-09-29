@@ -1,0 +1,1 @@
+dc lo ref 39.2 ohmm chi2 1.656 history 3.95 2.36 1.05 0.63 time 15.1 min
