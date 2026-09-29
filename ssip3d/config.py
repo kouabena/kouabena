@@ -67,3 +67,7 @@ MAX_ITER_IP = 5
 
 # --- Display -----------------------------------------------------------------
 COVERAGE_DROP = 2.25       # decades below near-surface coverage = 'resolved'
+
+# --- DOI test (05_doi.py) -----------------------------------------------------
+DOI_ALPHA_S = 0.1          # smallness weight relative to smoothness
+DOI_CUTOFF = 0.2           # DOI index below this = resolved
