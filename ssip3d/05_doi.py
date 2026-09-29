@@ -31,20 +31,27 @@ OUT = C.RESULTS_DIR / ("test" if TEST else "")
 FACTORS = {"lo": 0.1, "hi": 10.0}
 
 
-def scale_smallness(inv, n_cells):
+def scale_smallness(inv, n_cells, cell_volumes):
     """Scale the smallness (identity) rows of a cType=10 regularization.
 
     pyGIMLi's cType=10 stacks first-order smoothness rows (zWeight-weighted)
-    with an identity block of weight 1. The identity rows are scaled to
-    DOI_ALPHA_S. Must be called after the inversion has been set up (a
-    zero-iteration run) and before the real run.
+    with an identity block of weight 1. As in Oldenburg & Li (1999), where
+    the smallness term is a volume integral of (m - m_ref)^2, each identity
+    row is weighted by DOI_ALPHA_S * sqrt(V_i / median V). Without volume
+    weighting the thousands of small, data-constrained near-surface cells
+    and the few large, insensitive deep cells count the same, and no single
+    weight works (0.03 left deep cells unaffected, 1 destroyed the fit).
+    Call after the inversion has been set up (zero-iteration run).
     """
     w = np.array(inv.inv.cWeight(), dtype=float)
     assert len(w) == inv.fop.constraints().rows() > n_cells
-    w[-n_cells:] *= C.DOI_ALPHA_S
+    vol = np.asarray(cell_volumes, dtype=float)
+    assert len(vol) == n_cells
+    w[-n_cells:] *= C.DOI_ALPHA_S * np.sqrt(vol / np.median(vol))
     inv.setConstraintWeights(pg.Vector(w))
     print(f"constraints: {len(w) - n_cells} smoothness + {n_cells} "
-          f"smallness rows (alpha_s={C.DOI_ALPHA_S})")
+          f"volume-weighted smallness rows (alpha_s={C.DOI_ALPHA_S}, "
+          f"weights {w[-n_cells:].min():.3g} - {w[-n_cells:].max():.3g})")
     return w
 
 
@@ -80,6 +87,7 @@ def run_dc():
     pd_mesh = pg.load(str(C.RESULTS_DIR / "paraDomain.bms"))
     rho0 = float(np.median(data["rhoa"]))
     start = np.load(C.RESULTS_DIR / "res.npy")
+    vol = [c.size() for c in pd_mesh.cells()]
     if TEST:
         start = np.full(pd_mesh.cellCount(), rho0)
     for tag, fac in FACTORS.items():
@@ -91,7 +99,7 @@ def run_dc():
         # (10x off the background) converged far too slowly.
         kw = dict(startModel=start, lam=C.LAM_DC, verbose=True)
         mgr.invert(cType=10, zWeight=C.ZWEIGHT, maxIter=0, **kw)   # set-up
-        w = scale_smallness(mgr.inv, pd_mesh.cellCount())
+        w = scale_smallness(mgr.inv, pd_mesh.cellCount(), vol)
         set_reference(mgr.inv, ref)
         # dPhi=0: the default "<2 % improvement" stop is unreliable with
         # robust reweighting (it stopped a run whose chi2 fell 37 %/iter)
@@ -132,6 +140,7 @@ def run_ip(fk="F1"):
                                  mgr.inv.response, mgr.inv.model)
     phi, err, ok = inv3.phase_errors(data, fk)
     phi0 = max(float(np.median(phi[ok])), 1.0)
+    vol = [c.size() for c in pd_mesh.cells()]
     start = (np.full(pd_mesh.cellCount(), phi0) if TEST
              else np.load(C.RESULTS_DIR / f"phase_{fk}.npy"))
     for tag, fac in FACTORS.items():
@@ -144,7 +153,7 @@ def run_ip(fk="F1"):
         kw = dict(absoluteError=err, relativeError=0.0, startModel=start,
                   lam=C.LAM_IP)
         inv.run(phi, cType=10, maxIter=0, **kw)                     # set-up
-        w = scale_smallness(inv, pd_mesh.cellCount())
+        w = scale_smallness(inv, pd_mesh.cellCount(), vol)
         set_reference(inv, ref)
         model = inv.run(phi, robustData=True, dPhi=0.0, stopAtChi1=False,
                         maxIter=2 if TEST else C.DOI_MAX_ITER_IP, **kw)

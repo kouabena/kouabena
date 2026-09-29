@@ -69,10 +69,10 @@ MAX_ITER_IP = 5
 COVERAGE_DROP = 2.25       # decades below near-surface coverage = 'resolved'
 
 # --- DOI test (05_doi.py) -----------------------------------------------------
-DOI_ALPHA_S = 1.0          # smallness weight (pyGIMLi cType=10 default).
-#   pyGIMLi smoothness is an unnormalized cell difference, so alpha must be
-#   O(1) for the reference to control insensitive cells: 0.01 and 0.03 gave
-#   R ~ 0.01 even 700 m deep (deep cells followed smoothness instead)
+DOI_ALPHA_S = 0.03         # smallness weight at the median cell volume;
+#   rows are scaled by sqrt(V / median V) (volume integral as in Oldenburg &
+#   Li). Uniform weights failed: 0.03 left deep cells tied to smoothness
+#   (R ~ 0.01 at 700 m), 1.0 overrode the data (chi2 119)
 DOI_CUTOFF = 0.2           # DOI index below this = resolved
 DOI_MAX_ITER = 6           # DC iterations per DOI run (fixed, from final model)
 DOI_MAX_ITER_IP = 6
