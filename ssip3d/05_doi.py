@@ -168,28 +168,58 @@ def run_ip(fk="F1"):
 
 
 def doi_index(m_lo, m_hi, ref_lo, ref_hi):
-    return np.abs((np.log(m_lo) - np.log(m_hi)) /
-                  (np.log(ref_lo) - np.log(ref_hi)))
+    """Raw and normalized DOI index.
+
+    The absolute scale of R depends on the smallness weighting, so, as in
+    Oldenburg & Li (1999) and Marescot et al. (2003), the cutoff is applied
+    to R normalized by its maximum. The 99.9th percentile is used as the
+    maximum because single near-surface edge cells otherwise set it.
+    """
+    R = np.abs((np.log(m_lo) - np.log(m_hi)) /
+               (np.log(ref_lo) - np.log(ref_hi)))
+    return R, R / np.percentile(R, 99.9)
+
+
+def summarize(name, Rn, depth):
+    lines = [f"{name}: normalized DOI index, cutoff {C.DOI_CUTOFF}"]
+    for a, b in [(0, 100), (100, 200), (200, 300), (300, 400), (400, 500),
+                 (500, 600), (600, 800)]:
+        s = (depth >= a) & (depth < b)
+        if s.any():
+            lines.append(f"  depth {a}-{b} m: median {np.median(Rn[s]):.3f}, "
+                         f"{(Rn[s] < C.DOI_CUTOFF).mean() * 100:.0f}% cells "
+                         f"< {C.DOI_CUTOFF}, "
+                         f"{(Rn[s] < 0.1).mean() * 100:.0f}% < 0.1")
+    return lines
 
 
 def run_index():
+    from meshing import topography
     data = load_data()
+    pd_mesh = pg.load(str(C.RESULTS_DIR / "paraDomain.bms"))
+    cc = np.array(pd_mesh.cellCenters())
+    topo = topography(np.array(data.sensors()))
+    depth = topo(cc[:, 0], cc[:, 1]) - cc[:, 2]
+    s = np.array(data.sensors())
+    inside = ((cc[:, 0] >= s[:, 0].min()) & (cc[:, 0] <= s[:, 0].max()) &
+              (cc[:, 1] >= s[:, 1].min() - 50) &
+              (cc[:, 1] <= s[:, 1].max() + 50))
     rho0 = float(np.median(data["rhoa"]))
     lo, hi = (np.load(OUT / f"doi_res_{t}.npy") for t in FACTORS)
-    R = doi_index(lo, hi, rho0 * FACTORS["lo"], rho0 * FACTORS["hi"])
-    np.save(OUT / "doi_res.npy", R)
-    msg = [f"resistivity DOI: median R {np.median(R):.3f}, "
-           f"{(R < C.DOI_CUTOFF).mean() * 100:.0f}% cells R < {C.DOI_CUTOFF}"]
+    R, Rn = doi_index(lo, hi, rho0 * FACTORS["lo"], rho0 * FACTORS["hi"])
+    np.save(OUT / "doi_res_raw.npy", R)
+    np.save(OUT / "doi_res.npy", Rn)
+    msg = summarize("resistivity", Rn[inside], depth[inside])
     f_lo = OUT / "doi_phase_F1_lo.npy"
     if f_lo.exists():
         _, err, ok = inv3.phase_errors(data, "F1")
         phi0 = max(float(np.median(np.array(data["ipF1"])[ok])), 1.0)
         plo, phi_ = np.load(f_lo), np.load(OUT / "doi_phase_F1_hi.npy")
-        Rp = doi_index(plo, phi_, phi0 * FACTORS["lo"], phi0 * FACTORS["hi"])
-        np.save(OUT / "doi_phase_F1.npy", Rp)
-        msg.append(f"phase F1 DOI: median R {np.median(Rp):.3f}, "
-                   f"{(Rp < C.DOI_CUTOFF).mean() * 100:.0f}% cells "
-                   f"R < {C.DOI_CUTOFF}")
+        Rp, Rpn = doi_index(plo, phi_, phi0 * FACTORS["lo"],
+                            phi0 * FACTORS["hi"])
+        np.save(OUT / "doi_phase_F1_raw.npy", Rp)
+        np.save(OUT / "doi_phase_F1.npy", Rpn)
+        msg += summarize("phase F1", Rpn[inside], depth[inside])
     with open(OUT / "doi_log.txt", "a") as fh:
         fh.write("\n".join(msg) + "\n")
     print("\n".join(msg))
