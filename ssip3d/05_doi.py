@@ -82,8 +82,10 @@ def run_dc():
                   verbose=True)
         mgr.invert(cType=10, zWeight=C.ZWEIGHT, maxIter=0, **kw)   # set-up
         w = scale_smallness(mgr.inv, pd_mesh.cellCount())
+        # dPhi=0: the default "<2 % improvement" stop is unreliable with
+        # robust reweighting (it stopped a run whose chi2 fell 37 %/iter)
         mgr.inv.run(mgr.inv.dataVals, mgr.inv.errorVals, robustData=True,
-                    maxIter=1 if TEST else C.MAX_ITER_DC + 4, **kw)
+                    dPhi=0.0, maxIter=1 if TEST else C.DOI_MAX_ITER, **kw)
         check_weights(mgr.inv, w)
         assert mgr.paraDomain.cellCount() == pd_mesh.cellCount()
         np.save(OUT / f"doi_res_{tag}.npy", np.array(mgr.model))
@@ -125,8 +127,8 @@ def run_ip(fk="F1"):
                   isReference=True, lam=C.LAM_IP)
         inv.run(phi, cType=10, maxIter=0, **kw)                     # set-up
         w = scale_smallness(inv, pd_mesh.cellCount())
-        model = inv.run(phi, robustData=True,
-                        maxIter=2 if TEST else C.MAX_ITER_IP + 2, **kw)
+        model = inv.run(phi, robustData=True, dPhi=0.0,
+                        maxIter=2 if TEST else C.DOI_MAX_ITER_IP, **kw)
         check_weights(inv, w)
         np.save(OUT / f"doi_phase_{fk}_{tag}.npy", np.array(model))
         resp = np.array(inv.response)
