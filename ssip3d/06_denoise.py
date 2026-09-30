@@ -76,6 +76,48 @@ def load_line(name, prefix, y):
     df["straddle"] = (df.p1x < df.c1x) & (df.p2x > df.c1x)
     df["side"] = np.where(df.p1x > df.c1x, 1, -1)
     df["stored_as"] = "resistance" if is_res else "app_resistivity"
+    return add_zond_edits(df, prefix)
+
+
+def read_z2d(path):
+    """Data part of a ZondRes2D .z2d file (c1 p1 c2 p2 value weight eta_a)."""
+    lines = path.read_text().splitlines()
+    head = lines[0].split()
+    end = lines.index("topo#")
+    a = np.array([ln.split() for ln in lines[1:end]], dtype=float)
+    return pd.DataFrame(a, columns=head)
+
+
+def add_zond_edits(df, prefix):
+    """Carry over the user's ZondRes2D QC from the original .z2d files.
+
+    The .z2d files were saved in ZondRes2D after the .dat export. Their
+    weights are 1 - err/100 unless the user edited them (L22 F1: 935 rows,
+    weights down to 0.11). Edited weights are kept as `zond_user_weight`
+    (minimum over F1..F3; 1 if unedited). Rows absent from the .z2d files
+    (3 per line, dropped at import into ZondRes2D) are flagged.
+    """
+    w_user = np.ones(len(df))
+    present = np.zeros(len(df), bool)
+    found = False
+    for fk in FK:
+        path = C.RAW_DIR / f"{prefix}_{fk}.z2d"
+        if not path.exists():
+            continue
+        found = True
+        z = read_z2d(path).rename(columns={"c1": "c1x", "p1": "p1x",
+                                           "p2": "p2x"})
+        z = z.drop_duplicates(KEY)
+        m = df[KEY + [f"err_{fk}"]].merge(z[KEY + ["weight"]], on=KEY,
+                                          how="left")
+        has = m.weight.notna().values
+        present |= has
+        expected = 1.0 - m[f"err_{fk}"].values / 100.0
+        edited = has & (np.abs(m.weight.values - expected) > 1e-6)
+        w_user = np.where(edited, np.minimum(w_user, m.weight.values),
+                          w_user)
+    df["zond_user_weight"] = w_user
+    df["flag_not_in_z2d"] = ~present if found else False
     return df
 
 
@@ -184,6 +226,7 @@ def main():
     ph = np.c_[tuple(phase_of(df[f"zfit_{fk}"], df.k) for fk in FK)]
     df["flag_phase"] = ((ph < C.MIN_PHASE) | (ph > C.MAX_ABS_PHASE)).any(1)
     df["dc_ok"] = ~(df.flag_bad_tx | df.flag_inconsistent | df.flag_straddle
+                    | df.flag_not_in_z2d
                     | df.zfit_F1.isna())
     df["ip_ok"] = df.dc_ok & ~df.flag_phase
 
@@ -222,6 +265,14 @@ def main():
             f"{gg.R_relerr.quantile(.9) * 100:.2f}%) | phase error F1: "
             f"median {gg.phase_err_dn_F1.median():.2f} mrad | reported "
             f"phase error F1: median {gg.phase_err_F1.median():.2f} mrad")
+    ed = df.zond_user_weight < 1
+    lines += ["", f"User-edited ZondRes2D weights: {ed.sum()} dipoles "
+              f"(weights {df.zond_user_weight[ed].min():.2f}-"
+              f"{df.zond_user_weight[ed].max():.2f}); {(ed & df.flag_bad_tx).sum()}"
+              f" of them on injections flagged here as bad, "
+              f"{(ed & df.dc_ok).sum()} kept with the user weight.",
+              f"Rows missing from the .z2d files (dropped): "
+              f"{int(df.flag_not_in_z2d.sum())}"]
     badl = tx[tx.bad_tx]
     lines += ["", "Injections flagged as bad (median consistency residual "
               f"> {C.DN_BAD_TX_RES * 100:.1f}%):"]

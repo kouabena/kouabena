@@ -55,8 +55,13 @@ def phase_errors(data, fk):
     """Absolute phase error (mrad) and a validity mask for frequency fk."""
     phi = np.array(data[f"ip{fk}"])
     rep = np.abs(np.array(data[f"iperr{fk}"]))
-    ok = (np.isfinite(phi) & (phi <= C.MAX_ABS_PHASE) & (phi >= C.MIN_PHASE)
-          & (rep <= C.MAX_PHASE_ERR))
+    if data.haveData("ipok"):
+        # denoised data: IP QC already done in 06_denoise.py, errors are the
+        # (conservative) frequency-scatter estimates, so no error cutoff
+        ok = np.isfinite(phi) & (np.array(data["ipok"]) > 0)
+    else:
+        ok = (np.isfinite(phi) & (phi <= C.MAX_ABS_PHASE)
+              & (phi >= C.MIN_PHASE) & (rep <= C.MAX_PHASE_ERR))
     err = rep + C.PHASE_ERR_FLOOR + C.PHASE_ERR_REL * np.abs(phi)
     err[~ok] = 1e4                  # rejected data get ~zero weight
     return phi, err, ok

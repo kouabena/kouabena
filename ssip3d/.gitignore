@@ -10,3 +10,6 @@ resp*.vec
 results/pass1/*
 !results/pass1/dc_log.txt
 Nan_*
+work_denoised/*
+!work_denoised/ssip3d.dat
+results_denoised/paraDomain.bms

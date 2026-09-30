@@ -55,25 +55,35 @@ def write_res2dinv(path, d, title, fk=None):
     path.write_text("\r\n".join(hdr + rows) + "\r\n")
 
 
+def zond_weight(d):
+    """min(1, 3 % / relative error) times the user's ZondRes2D weight."""
+    return (np.minimum(1.0, C.ZOND_W_REF_ERR / d.R_relerr.values)
+            * d.zond_user_weight.values)
+
+
+def eta_from_phase(phase_mrad):
+    """ZondRes2D converts phase to eta_a (%) as 100 * tan(phase)."""
+    return 100.0 * np.tan(np.asarray(phase_mrad) / 1000.0)
+
+
 def write_z2d(path, d, fk=None):
     """ZondRes2D text format, laid out like the .z2d files of this survey.
 
-    weight: C.ZOND_W_REF_ERR / relative error, capped at 1 (so data at the
-    reference error level or better get full weight). eta_a: phase / 10, the
-    convention of the original .z2d files (8.0 mrad -> 0.80).
+    weight: see zond_weight(). eta_a: 100 * tan(phase), ZondRes2D's own
+    conversion found in the original .z2d files (8.0 mrad -> 0.80).
     """
     def e(v):
         """Number as in the original .z2d files: ' 1.23450000000000E+0003'."""
         mant, exp = f"{v: .14E}".split("E")
         return f"{mant}E{exp[0]}{abs(int(exp)):04d}"
-    w = np.minimum(1.0, C.ZOND_W_REF_ERR / d.R_relerr.values)
+    w = zond_weight(d)
     R = d.R_dn_F1.values if fk is None else d[f"R_dn_{fk}"].values
     head = "c1 p1 c2 p2 res weight" + ("" if fk is None else " eta_a") + " "
     lines = [head]
     for i, r in enumerate(d.itertuples()):
         row = [e(r.c1x), e(r.p1x), e(REMOTE), e(r.p2x), e(R[i]), e(w[i])]
         if fk is not None:
-            row.append(e(getattr(r, f"phase_dn_{fk}") / 10.0))
+            row.append(e(eta_from_phase(getattr(r, f"phase_dn_{fk}"))))
         lines.append(" ".join(row) + " ")
     topo = pd.concat([d[["c1x", "c1z"]].set_axis(["x", "z"], axis=1),
                       d[["p1x", "p1z"]].set_axis(["x", "z"], axis=1),
@@ -100,11 +110,12 @@ def write_z3d(path, t):
             + " ".join(f"mod{i + 1}" for i in range(len(FK))) + " "
             + " ".join(f"pha{i + 1}" for i in range(len(FK))) + " weightip")
     prof = {n: i for i, n in enumerate(C.LINES)}
-    w = np.minimum(1.0, C.ZOND_W_REF_ERR / t.R_relerr.values)
+    w = zond_weight(t)
     perr = np.sqrt(np.mean([t[f"phase_err_dn_{fk}"].values ** 2
                             for fk in FK], axis=0))
     wip = np.where(t.ip_ok.values,
-                   np.minimum(1.0, C.ZOND_W_REF_PHASE / perr), 0.0)
+                   np.minimum(1.0, C.ZOND_W_REF_PHASE / perr)
+                   * t.zond_user_weight.values, 0.0)
     lines = [f"time_#chann {freqs}", head]
     for i, r in enumerate(t.itertuples()):
         vals = [f"{prof[r.line]}", f"{r.c1x:.3f}", f"{r.p1x:.3f}",
@@ -162,6 +173,7 @@ def main():
         "Nx": t.p2x, "Ny": t.y, "Nz": t.p2z,
         "R_ohm": np.sign(k3d) * t.R_dn_F1, "k_3d": k3d,
         "rhoa_ohmm": np.abs(k3d) * t.R_dn_F1, "R_relerr": t.R_relerr,
+        "zond_user_weight": t.zond_user_weight,
         "ip_ok": t.ip_ok.astype(int)})
     for fk in FK:
         out[f"phase_{fk}_mrad"] = t[f"phase_dn_{fk}"]

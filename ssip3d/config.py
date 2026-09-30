@@ -3,12 +3,17 @@
 Edit this file (not the scripts) when the survey geometry or the inversion
 parameters change.
 """
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 RAW_DIR = ROOT / "raw"            # unzipped "SSIP DATA INVERSION" folder
-WORK_DIR = ROOT / "work"          # intermediate files (data, mesh, Jacobian)
-RESULTS_DIR = ROOT / "results"    # models, VTK and figures
+# SSIP_VARIANT=denoised runs steps 02-05 on the harmonized, denoised data
+# exported for ZondRes3D (08_prepare_denoised.py) into separate folders.
+VARIANT = os.environ.get("SSIP_VARIANT", "")
+_sfx = f"_{VARIANT}" if VARIANT else ""
+WORK_DIR = ROOT / f"work{_sfx}"          # intermediate files (data, mesh)
+RESULTS_DIR = ROOT / f"results{_sfx}"    # models, VTK and figures
 
 # --- Survey geometry -------------------------------------------------------
 # Lines are assumed straight and parallel, all starting at chainage x = 0 and
