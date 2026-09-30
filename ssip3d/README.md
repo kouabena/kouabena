@@ -15,6 +15,7 @@ one 3D phase (IP) model per frequency.
 | `03_invert.py` | resistivity inversion, then phase inversion at F1–F4 |
 | `05_doi.py` | depth-of-investigation test (Oldenburg & Li) |
 | `06_denoise.py` | denoising of all dipoles: potential reconstruction, bad-injection detection, error estimates, phase QC |
+| `08_prepare_denoised.py`, `09_compare_variants.py`, `results_denoised/` | pyGIMLi inversion of exactly the ZondRes3D dataset (final model) and comparison with the original |
 | `07_export_zond.py`, `zond/` | denoised data as ZondRes3D input (Res2DInv + .z2d + 3D CSV); run guide in `zond/README_ZondRes3D.md` |
 | `flag_outliers.py`, `outliers_pass1.csv` | data misfit by > 5σ in pass 1, removed in pass 2 |
 | `04_export_results.py` | VTK/CSV export and figures |
@@ -260,6 +261,40 @@ python 06_denoise.py        # < 1 min, all 166k dipoles x 4 frequencies
 python 07_export_zond.py    # writes zond/
 ```
 The method, results and the ZondRes3D run guide are in `zond/README_ZondRes3D.md`. The QC figure is `results/denoise/fig_denoise_qc.png`. The pyGIMLi results above use the earlier (not denoised) selection. The denoised set differs mainly on L22: resistance converted with horizontal-distance geometric factors, and 7 inconsistent off-end injections removed.
+
+## Harmonization with the original ZondRes2D files and the final model
+The `.z2d` files of the survey were audited against the `.dat` exports.
+Details are in `zond/README_ZondRes3D.md`.
+* Values and topography are identical.
+* ZondRes2D dropped the last 3 rows of each line. They are dropped here too.
+* ZondRes2D converts phase to eta_a as 100·tan(φ). The export uses the same
+  formula.
+* The user had re-weighted 935 L22 F1 data in ZondRes2D (weights
+  0.11–0.50), and 852 of them are on the off-end injections the consistency
+  test rejects. The user weights are carried into both the ZondRes3D files
+  and pyGIMLi.
+
+**Final pyGIMLi model (`results_denoised/`)** = inversion of exactly the
+data given to ZondRes3D:
+- **Data:** 7 639 resistance and 6 343 IP data, after the pass-1 misfit
+  outliers are removed.
+- **Fit:** resistivity plain χ² 2.96, rel. RMS 10.4 % (original run: 3.95,
+  10.8 %). Phase median residual 3.4–4.6 mrad at F1–F4.
+- **Agreement with the original model** in the resolved volume
+  (`results_denoised/compare_variants.txt`, `fig_compare_variants.png`):
+  - log-resistivity correlation 0.984, median difference 5.8 %,
+  - phase correlation 0.89–0.92, median difference about 1 mrad.
+  The interpretation above therefore holds for the denoised data.
+* Reproduce:
+  ```bash
+  python 06_denoise.py && python 07_export_zond.py && python 08_prepare_denoised.py
+  SSIP_VARIANT=denoised python 02_make_mesh.py
+  SSIP_VARIANT=denoised python 03_invert.py
+  python 09_compare_variants.py
+  SSIP_VARIANT=denoised python 04_export_results.py
+  ```
+* The DOI index is the one from the original run, mapped onto the new mesh
+  (same survey geometry).
 
 ## Georeferencing
 To put real coordinates in the model, either:

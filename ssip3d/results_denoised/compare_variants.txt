@@ -1,0 +1,28 @@
+Original (results/) vs harmonized denoised (results_denoised/)
+values compared cell by cell (nearest original cell), inside the resolved volume (DOI index < 0.2)
+
+resistivity: 36083 cells, correlation of log10 rho 0.984, median |ratio-1| 5.8%, 90th pct 16.8%
+phase F1: 22205 cells, correlation 0.908, median |diff| 1.52 mrad, median phase orig 11.4 / denoised 12.7 mrad
+phase F2: 22205 cells, correlation 0.920, median |diff| 1.03 mrad, median phase orig 12.2 / denoised 13.4 mrad
+phase F3: 22205 cells, correlation 0.917, median |diff| 0.89 mrad, median phase orig 12.7 / denoised 13.5 mrad
+phase F4: 22205 cells, correlation 0.893, median |diff| 1.37 mrad, median phase orig 11.7 / denoised 12.8 mrad
+
+dc_log.txt original:
+ndata 7819 ncells 50717
+chi2 3.950 rrms 10.767
+chi2 history 107.19 69.09 14.60 6.77 2.91 1.49 0.88
+dc_log.txt denoised:
+ndata 7639 ncells 49742
+chi2 2.962 rrms 10.389
+chi2 history 96.14 59.52 8.04 3.13 1.70 1.07 0.58
+
+ip_log.txt original:
+F1 ndata_used 6436 chi2 4.247 rms 8.408 mrad median|res| 3.46 mrad
+F2 ndata_used 6456 chi2 4.493 rms 9.176 mrad median|res| 2.48 mrad
+F3 ndata_used 6026 chi2 4.659 rms 8.620 mrad median|res| 2.69 mrad
+F4 ndata_used 6384 chi2 4.648 rms 8.236 mrad median|res| 2.89 mrad
+ip_log.txt denoised:
+F1 ndata_used 6343 chi2 1.325 rms 11.376 mrad median|res| 4.55 mrad
+F2 ndata_used 6343 chi2 0.828 rms 10.667 mrad median|res| 3.43 mrad
+F3 ndata_used 6343 chi2 0.883 rms 11.459 mrad median|res| 3.87 mrad
+F4 ndata_used 6343 chi2 1.049 rms 9.967 mrad median|res| 4.06 mrad

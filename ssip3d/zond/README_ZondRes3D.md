@@ -8,9 +8,9 @@ manual (English edition; page numbers below refer to it).
 
 | File | Use |
 |---|---|
-| **`ssip3d_denoised.z3d`** | **Recommended.** Native ZondRes3D data file with all three lines: 7 987 measurements, resistance plus 4-frequency IP (see format below) |
+| **`ssip3d_denoised.z3d`** | **Recommended.** Native ZondRes3D data file with all three lines: 7 639 measurements (6 343 with IP), resistance plus 4-frequency IP (see format below) |
 | `L22_res.z2d`, `L24_res.z2d`, `L26_res.z2d` | ZondRes2D files for *Collect from 2D* (resistance only, all data passing DC QC) |
-| `L*_F1.z2d` … `L*_F4.z2d` | ZondRes2D files with IP (eta_a = phase/10, as in your original .z2d projects), same geometry in F1–F4 |
+| `L*_F1.z2d` … `L*_F4.z2d` | ZondRes2D files with IP (eta_a = 100·tan(phase), ZondRes2D's own conversion), same geometry in F1–F4 |
 | `L*_res.dat`, `L*_F*.dat` | the same data in Res2DInv general-array format (backup, other software) |
 | `ssip3d_denoised_3d.csv` | all data with x, y, z of A, M, N, 3D geometric factor, ρa, errors (other software) |
 | `export_summary.txt` | data counts and x range of each line |
@@ -37,7 +37,8 @@ x y elevation   (one row per electrode position)
   negative", p. 33). A field phase of +18 mrad is written as −18.
 - `weight` = min(1, 3 % / relative error of R), and `weightip` =
   min(1, 3 mrad / phase error), both from the denoising error estimates.
-  `weightip = 0` marks the 1 328 rows whose phase failed QC.
+  `weightip = 0` marks the 1 296 rows whose phase failed QC. Both weights
+  also include your own ZondRes2D weights (see *Harmonization*).
 - **Check after opening:** in the polarizability mode the typical apparent
   phase must be about 15–20 mrad. If ZondRes3D shows it as −18 or treats it
   as radians, open the file in a text editor and flip the sign of `pha1–4`.
@@ -135,8 +136,8 @@ estimates.
    `weightip = 0`. Only test it as a sensitivity check.
 
 ### 6. Compare with pyGIMLi
-Compare with `../results/ssip3d_model.vtk` / `ssip3d_model_cells.csv` and
-the DOI index in the same files:
+Compare with `../results_denoised/ssip3d_model.vtk` / `ssip3d_model_cells.csv`
+(pyGIMLi on exactly these data; the DOI index is included):
 - resistive core at x ≈ 1300–1800 m,
 - conductive zone at x ≈ 2000–2300 m (top resolved, depth extent not),
 - chargeable zone at x ≈ 1100–1300 m near L22 (top at about 150 m depth;
@@ -144,6 +145,29 @@ the DOI index in the same files:
 
 Features seen by both codes are robust. Differences show where the
 regularization, not the data, decides.
+
+## Harmonization with your original .z2d files
+Your `.z2d` files (saved in ZondRes2D in 2025) were checked against the
+`.dat` exports:
+* **Values and topography**: identical.
+* **3 rows per line** (the last rows, far off-end injection) were dropped
+  when the files were imported into ZondRes2D. They are dropped here too.
+* **eta_a**: ZondRes2D stores eta_a = 100·tan(φ) (φ in rad). This equals
+  φ(mrad)/10 for normal phases and differs only for huge phases, which QC
+  removes anyway. The new .z2d files use the same formula.
+* **Your manual weights**: 935 L22 F1 data re-weighted in ZondRes2D (weights
+  0.11–0.50). 852 of them lie on the off-end injections that the
+  consistency test flags independently (−640, −473, −320, −160, 2335, 2900,
+  3060 m), so both QC methods agree. The others keep your weight: it
+  multiplies `weight`/`weightip` here and inflates the errors in pyGIMLi.
+* **Misfit outliers**: the 348 data misfit by more than 5σ in the first
+  pyGIMLi inversion (`../outliers_pass1.csv`) are removed. Among them are
+  L22 dipoles using the electrode at 400 m (apparent resistivity down to
+  0.46 Ω·m) and the last L26 dipole (2360–2400 m). Faulty electrodes shift
+  every dipole consistently, so the consistency test cannot catch them.
+* **Same data in both codes**: pyGIMLi was re-run on exactly this dataset
+  (`../results_denoised/`). This gives the reference model to compare
+  ZondRes3D against (next section).
 
 ## Denoising (what was done to the data)
 Scripts: `../06_denoise.py`, `../07_export_zond.py`. QC:

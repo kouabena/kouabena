@@ -1,0 +1,4 @@
+F1 ndata_used 6343 chi2 1.325 rms 11.376 mrad median|res| 4.55 mrad
+F2 ndata_used 6343 chi2 0.828 rms 10.667 mrad median|res| 3.43 mrad
+F3 ndata_used 6343 chi2 0.883 rms 11.459 mrad median|res| 3.87 mrad
+F4 ndata_used 6343 chi2 1.049 rms 9.967 mrad median|res| 4.06 mrad
