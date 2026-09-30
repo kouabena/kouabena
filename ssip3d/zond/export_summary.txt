@@ -1,0 +1,4 @@
+L22: y = 0 m | resistance 2355 data | IP 1918 data | injections 45
+L24: y = 200 m | resistance 2895 data | IP 2439 data | injections 51
+L26: y = 400 m | resistance 2737 data | IP 2302 data | injections 51
+total: resistance 7987 | IP 6659

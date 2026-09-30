@@ -13,6 +13,9 @@ one 3D phase (IP) model per frequency.
 | `01_prepare_data.py` | merge the 3 lines × 4 frequencies, QC, select data, write `work/ssip3d.dat` |
 | `02_make_mesh.py`, `meshing.py` | 3D tetrahedral mesh draped on topography |
 | `03_invert.py` | resistivity inversion, then phase inversion at F1–F4 |
+| `05_doi.py` | depth-of-investigation test (Oldenburg & Li) |
+| `06_denoise.py` | denoising of all dipoles: potential reconstruction, bad-injection detection, error estimates, phase QC |
+| `07_export_zond.py`, `zond/` | denoised data as ZondRes3D input (Res2DInv + .z2d + 3D CSV); run guide in `zond/README_ZondRes3D.md` |
 | `flag_outliers.py`, `outliers_pass1.csv` | data misfit by > 5σ in pass 1, removed in pass 2 |
 | `04_export_results.py` | VTK/CSV export and figures |
 | `work/ssip3d.dat` | the selected 3D dataset (pyGIMLi unified data format) |
@@ -250,6 +253,13 @@ python 05_doi.py dc && python 05_doi.py ip && python 05_doi.py index
                             # DOI test: ≈ 35 min + ≈ 50 min
 python 04_export_results.py
 ```
+
+## Denoising and ZondRes3D export
+```bash
+python 06_denoise.py        # < 1 min, all 166k dipoles x 4 frequencies
+python 07_export_zond.py    # writes zond/
+```
+The method, results and the ZondRes3D run guide are in `zond/README_ZondRes3D.md`. The QC figure is `results/denoise/fig_denoise_qc.png`. The pyGIMLi results above use the earlier (not denoised) selection. The denoised set differs mainly on L22: resistance converted with horizontal-distance geometric factors, and 7 inconsistent off-end injections removed.
 
 ## Georeferencing
 To put real coordinates in the model, either:

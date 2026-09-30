@@ -1,0 +1,18 @@
+Denoising summary (all dipoles, before selection)
+
+L22: 57057 dipoles | straddling 0 | bad injection 11568 | inconsistent 4930 | DC ok 43618 | phase flagged 8773 | IP ok 34845
+      rel. error of R: median 1.13% (p10-p90 1.00-3.21%) | phase error F1: median 9.49 mrad | reported phase error F1: median 5.02 mrad
+L24: 62989 dipoles | straddling 0 | bad injection 0 | inconsistent 259 | DC ok 62729 | phase flagged 11958 | IP ok 50771
+      rel. error of R: median 1.03% (p10-p90 1.00-1.44%) | phase error F1: median 6.94 mrad | reported phase error F1: median 1.59 mrad
+L26: 45730 dipoles | straddling 0 | bad injection 15 | inconsistent 705 | DC ok 45020 | phase flagged 8853 | IP ok 36167
+      rel. error of R: median 1.04% (p10-p90 1.00-1.81%) | phase error F1: median 4.67 mrad | reported phase error F1: median 1.38 mrad
+
+Injections flagged as bad (median consistency residual > 1.0%):
+  L22 C1 x = -640 m, side +: 2.85% (1653 dipoles)
+  L22 C1 x = -473 m, side +: 1.19% (1653 dipoles)
+  L22 C1 x = -320 m, side +: 1.40% (1650 dipoles)
+  L22 C1 x = -160 m, side +: 4.17% (1653 dipoles)
+  L22 C1 x = 2335 m, side -: 1.14% (1653 dipoles)
+  L22 C1 x = 2900 m, side -: 2.72% (1653 dipoles)
+  L22 C1 x = 3060 m, side -: 3.86% (1653 dipoles)
+  L26 C1 x = 2100 m, side +: 6.45% (15 dipoles)

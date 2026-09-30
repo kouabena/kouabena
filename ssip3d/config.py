@@ -76,3 +76,10 @@ DOI_ALPHA_S = 0.03         # smallness weight at the median cell volume;
 DOI_CUTOFF = 0.2           # DOI index below this = resolved
 DOI_MAX_ITER = 6           # DC iterations per DOI run (fixed, from final model)
 DOI_MAX_ITER_IP = 6
+
+# --- Denoising for ZondRes3D (06_denoise.py, 07_export_zond.py) --------------
+DN_BAD_TX_RES = 0.01       # injection flagged if median consistency residual > 1 %
+DN_MAX_CONS_RES = 0.05     # dipole flagged if inconsistent by > 5 % at any freq
+DN_REL_FLOOR = 0.01        # 1 % floor on the relative error of R
+DN_PHASE_FLOOR = 0.5       # mrad floor on phase errors
+ZOND_W_REF_ERR = 0.03     # z2d weight = min(1, 3 % / relative error)
