@@ -1,7 +1,10 @@
-L22: y = 0 m | resistance 2355 data | IP 1918 data | injections 45
-L24: y = 200 m | resistance 2895 data | IP 2439 data | injections 51
-L26: y = 400 m | resistance 2737 data | IP 2302 data | injections 51
-total: resistance 7987 | IP 6659 | unique electrode positions 326
+L22: pass-1 misfit outliers removed: 114
+L22: y = 0 m | resistance 2241 data | IP 1816 data | injections 45
+L24: pass-1 misfit outliers removed: 97
+L24: y = 200 m | resistance 2798 data | IP 2349 data | injections 51
+L26: pass-1 misfit outliers removed: 137
+L26: y = 400 m | resistance 2600 data | IP 2178 data | injections 51
+total: resistance 7639 | IP 6343 | unique electrode positions 326
 L22: x range -20 .. 2747 m (start/end for Collect from 2D)
 L24: x range -640 .. 3030 m (start/end for Collect from 2D)
 L26: x range -640 .. 3010 m (start/end for Collect from 2D)

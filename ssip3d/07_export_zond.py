@@ -14,8 +14,9 @@ Reads work/denoised_all.csv.gz (06_denoise.py) and writes zond/:
                                    A, M, N (B remote) for other software
 
 Selection: the same non-redundant dipole subset as the pyGIMLi inversion
-(01_prepare_data.select_dipoles), MIN_OFFSET and EXCLUDE_TX from config, plus
-the injections flagged by 06_denoise.py.
+(01_prepare_data.select_dipoles), MIN_OFFSET and EXCLUDE_TX from config, the
+pass-1 misfit outliers (config.OUTLIER_FILE), plus the injections flagged by
+06_denoise.py.
 """
 import importlib
 import numpy as np
@@ -150,6 +151,15 @@ def main():
     for name, (_, y) in C.LINES.items():
         g = df[base & (df.line == name)]
         sel = prep.select_dipoles(g)                      # non-redundant
+        # same misfit-outlier removal as the original pass 2 (01_prepare_data)
+        if C.OUTLIER_FILE.exists():
+            out = pd.read_csv(C.OUTLIER_FILE)
+            out = out[out.line == name][["c1x", "p1x", "p2x"]].assign(_o=1)
+            sel = sel.merge(out, on=["c1x", "p1x", "p2x"], how="left")
+            n_out = int(sel._o.notna().sum())
+            sel = sel[sel._o.isna()].drop(columns="_o")
+        else:
+            n_out = 0
         ip = sel[sel.ip_ok]
         write_res2dinv(OUT / f"{name}_res.dat", sel,
                        f"{name} SSIP denoised resistance")
@@ -159,6 +169,7 @@ def main():
                            f"{name} SSIP denoised {fk} {C.FREQS[fk]:g} Hz",
                            fk)
             write_z2d(OUT / f"{name}_{fk}.z2d", ip, fk)
+        summary.append(f"{name}: pass-1 misfit outliers removed: {n_out}")
         summary.append(f"{name}: y = {y:.0f} m | resistance {len(sel)} data "
                        f"| IP {len(ip)} data | injections "
                        f"{sel.c1x.nunique()}")
