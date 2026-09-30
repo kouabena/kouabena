@@ -56,13 +56,16 @@ def phase_errors(data, fk):
     phi = np.array(data[f"ip{fk}"])
     rep = np.abs(np.array(data[f"iperr{fk}"]))
     if data.haveData("ipok"):
-        # denoised data: IP QC already done in 06_denoise.py, errors are the
-        # (conservative) frequency-scatter estimates, so no error cutoff
+        # denoised data: IP QC already done in 06_denoise.py, and the errors
+        # are already conservative estimates (with floor), so they are used
+        # as they are; adding the usual floor again double-counts noise and
+        # stopped the inversion after one iteration with an over-smooth model
         ok = np.isfinite(phi) & (np.array(data["ipok"]) > 0)
+        err = rep.copy()
     else:
         ok = (np.isfinite(phi) & (phi <= C.MAX_ABS_PHASE)
               & (phi >= C.MIN_PHASE) & (rep <= C.MAX_PHASE_ERR))
-    err = rep + C.PHASE_ERR_FLOOR + C.PHASE_ERR_REL * np.abs(phi)
+        err = rep + C.PHASE_ERR_FLOOR + C.PHASE_ERR_REL * np.abs(phi)
     err[~ok] = 1e4                  # rejected data get ~zero weight
     return phi, err, ok
 
