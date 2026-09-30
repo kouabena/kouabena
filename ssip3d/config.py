@@ -82,4 +82,5 @@ DN_BAD_TX_RES = 0.01       # injection flagged if median consistency residual > 
 DN_MAX_CONS_RES = 0.05     # dipole flagged if inconsistent by > 5 % at any freq
 DN_REL_FLOOR = 0.01        # 1 % floor on the relative error of R
 DN_PHASE_FLOOR = 0.5       # mrad floor on phase errors
-ZOND_W_REF_ERR = 0.03     # z2d weight = min(1, 3 % / relative error)
+ZOND_W_REF_ERR = 0.03      # Zond weight = min(1, 3 % / relative error of R)
+ZOND_W_REF_PHASE = 3.0     # Zond weightip = min(1, 3 mrad / phase error)

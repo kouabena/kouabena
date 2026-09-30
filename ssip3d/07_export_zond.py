@@ -85,6 +85,47 @@ def write_z2d(path, d, fk=None):
     path.write_text("\r\n".join(lines) + "\r\n")
 
 
+def write_z3d(path, t):
+    """Native ZondRes3D text data file (manual, "Z3D file format").
+
+    One file for all lines (prof = 0, 1, 2), pole-dipole (C2 columns omitted),
+    resistance (recommended with topography), 4-frequency IP as multichannel
+    frequency-domain data: mod1..4 = |R| and pha1..4 = phase in mrad with
+    Zond's sign convention (phase shift negative for a lagging voltage).
+    Electrodes are on the surface (z = 0); elevations are in the Topo block.
+    Rows whose phase failed QC get weightip = 0.
+    """
+    freqs = " ".join(f"{C.FREQS[fk]:g}" for fk in FK)
+    head = ("prof c1x p1x p2x c1y p1y p2y c1z p1z p2z weight res "
+            + " ".join(f"mod{i + 1}" for i in range(len(FK))) + " "
+            + " ".join(f"pha{i + 1}" for i in range(len(FK))) + " weightip")
+    prof = {n: i for i, n in enumerate(C.LINES)}
+    w = np.minimum(1.0, C.ZOND_W_REF_ERR / t.R_relerr.values)
+    perr = np.sqrt(np.mean([t[f"phase_err_dn_{fk}"].values ** 2
+                            for fk in FK], axis=0))
+    wip = np.where(t.ip_ok.values,
+                   np.minimum(1.0, C.ZOND_W_REF_PHASE / perr), 0.0)
+    lines = [f"time_#chann {freqs}", head]
+    for i, r in enumerate(t.itertuples()):
+        vals = [f"{prof[r.line]}", f"{r.c1x:.3f}", f"{r.p1x:.3f}",
+                f"{r.p2x:.3f}", f"{r.y:.3f}", f"{r.y:.3f}", f"{r.y:.3f}",
+                "0", "0", "0", f"{w[i]:.4f}", f"{r.R_dn_F1:.6e}"]
+        vals += [f"{getattr(r, f'R_dn_{fk}'):.6e}" for fk in FK]
+        vals += [f"{-getattr(r, f'phase_dn_{fk}'):.4f}" for fk in FK]
+        vals.append(f"{wip[i]:.4f}")
+        lines.append(" ".join(vals))
+    topo = pd.concat([
+        t[["c1x", "y", "c1z"]].set_axis(["x", "y", "z"], axis=1),
+        t[["p1x", "y", "p1z"]].set_axis(["x", "y", "z"], axis=1),
+        t[["p2x", "y", "p2z"]].set_axis(["x", "y", "z"], axis=1)])
+    topo = topo.groupby(["x", "y"], as_index=False).z.mean()
+    lines.append("Topo")
+    lines += [f"{x:.3f} {y:.3f} {z:.3f}" for x, y, z in
+              zip(topo.x, topo.y, topo.z)]
+    path.write_text("\r\n".join(lines) + "\r\n")
+    return len(topo)
+
+
 def main():
     OUT.mkdir(exist_ok=True)
     df = pd.read_csv(C.WORK_DIR / "denoised_all.csv.gz")
@@ -127,7 +168,14 @@ def main():
         out[f"phase_err_{fk}_mrad"] = t[f"phase_err_dn_{fk}"]
     out.to_csv(OUT / "ssip3d_denoised_3d.csv", index=False,
                float_format="%.6g")
-    summary.append(f"total: resistance {len(out)} | IP {out.ip_ok.sum()}")
+    n_el = write_z3d(OUT / "ssip3d_denoised.z3d", t)
+    summary.append(f"total: resistance {len(out)} | IP {out.ip_ok.sum()} | "
+                   f"unique electrode positions {n_el}")
+    for name in C.LINES:
+        g = t[t.line == name]
+        xs = np.r_[g.c1x, g.p1x, g.p2x]
+        summary.append(f"{name}: x range {xs.min():.0f} .. {xs.max():.0f} m "
+                       "(start/end for Collect from 2D)")
     (OUT / "export_summary.txt").write_text("\n".join(summary) + "\n")
     print("\n".join(summary))
 
