@@ -92,7 +92,33 @@ class Simulation:
         self.snap_distance = np.linalg.norm(
             self.electrode_xyz[:, :2] - survey.electrodes[:, :2], axis=1
         )
-        self._cache_key = None
+        self._perm = self._nested_dissection()
+
+    def _nested_dissection(self, leaf=64):
+        """Geometric nested-dissection ordering of the free nodes.
+
+        Recursively splits the node set by planes normal to its longest axis
+        and orders the separators last; on tensor meshes this keeps the fill of
+        the sparse LU factors close to optimal (orders of magnitude less
+        factorisation time than COLAMD for 1e5 cells).
+        """
+        nx, ny, _ = self.mesh.shape_nodes
+        f = self.free
+        ijk = (f % nx, (f // nx) % ny, f // (nx * ny))
+        out = []
+
+        def rec(idx):
+            if len(idx) < leaf:
+                out.append(idx)
+                return
+            c = [a[idx] for a in ijk]
+            ax = int(np.argmax([np.ptp(x) for x in c]))
+            mid = (c[ax].min() + c[ax].max()) // 2
+            rec(idx[c[ax] < mid])
+            rec(idx[c[ax] > mid])
+            out.append(idx[c[ax] == mid])
+        rec(np.arange(len(f)))
+        return np.concatenate(out)
 
     # ------------------------------------------------------------- solving
     def _system(self, sigma_cells):
@@ -103,11 +129,17 @@ class Simulation:
     def pole_fields(self, sigma_cells):
         """Potentials (n_free, n_elec) for unit current at each electrode."""
         A = self._system(sigma_cells)
-        lu = spla.splu(A, permc_spec="COLAMD")
+        p = self._perm
+        # A is complex symmetric with a dominant positive real part: factor without
+        # pivoting (symmetric mode) in nested-dissection order
+        lu = spla.splu(A[p][:, p].tocsc(), permc_spec="NATURAL", diag_pivot_thresh=0.0,
+                       options=dict(SymmetricMode=True))
         n_e = len(self.elec_free)
         rhs = np.zeros((A.shape[0], n_e), dtype=A.dtype)
         rhs[self.elec_free, np.arange(n_e)] = 1.0
-        return lu.solve(rhs)
+        U = np.empty_like(rhs)
+        U[p] = lu.solve(rhs[p])
+        return U
 
     def _gather(self, mat):
         """Append a zero column so that index -1 (remote electrode) gives zero."""

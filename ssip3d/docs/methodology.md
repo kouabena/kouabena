@@ -57,8 +57,11 @@ cells, gradients on the edges:
 `G` is the nodal gradient and `B` lumps each cell's σ·V/4 onto its 12 edges. Air cells
 above the topography get σ = 0, so the free surface is a natural Neumann boundary of any
 shape. Sides and bottom are Dirichlet, placed far away by geometric padding. A is complex
-symmetric. It is factorised once per frequency (sparse LU) and reused for all electrodes
-(pole fields) and for the sensitivities.
+symmetric with a dominant positive real part. It is factorised once per frequency by
+sparse LU without pivoting (symmetric mode), using a geometric nested-dissection ordering
+of the tensor-mesh nodes: about 30 s for 10⁵ cells, where COLAMD ordering takes more than
+30 minutes. The factors are reused for all electrodes (pole fields) and for the
+sensitivities.
 
 **Singularity correction.** The point-source singularity causes a geometry-dependent
 discretisation error (≈ 9 % at h = a/2). This is removed with numerical geometric
@@ -148,7 +151,7 @@ Cells with volume-normalised coverage below `coverage_min` are not interpreted.
 
 * EM coupling is not modelled. Keep f·(array size)² small, or remove coupling before
   inversion.
-* Direct sparse LU limits the problem size to ≈ 10⁵ cells on a workstation. An iterative
-  solver (AMG-preconditioned, already benchmarked) would scale further.
+* Direct sparse LU (nested dissection) handles a few 10⁵ cells on a workstation. An
+  iterative solver (AMG-preconditioned, already benchmarked) would scale further.
 * Topography is supported in the forward model (air cells). The singularity correction is
   then computed on a flat copy of the mesh.
