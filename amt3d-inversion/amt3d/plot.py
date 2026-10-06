@@ -30,8 +30,11 @@ def _log_rho(mesh, m):
     return mesh.to_grid(-m / np.log(10))   # log10(resistivity)
 
 
-def _norm(logr, ref=None):
-    lo, hi = np.percentile(logr, [1, 99])
+def _norm(logr, ref=None, vmin=None, vmax=None):
+    """Diverging norm centred on `ref` (default: median). vmin/vmax in log10 Ohm.m."""
+    logr = np.concatenate([np.ravel(g) for g in (logr if isinstance(logr, list) else [logr])])
+    lo, hi = np.percentile(logr, [0.5, 99.5])
+    lo, hi = (lo if vmin is None else vmin), (hi if vmax is None else vmax)
     ref = np.median(logr) if ref is None else ref
     lo, hi = min(lo, ref - 0.3), max(hi, ref + 0.3)
     return TwoSlopeNorm(vcenter=ref, vmin=lo, vmax=hi)
@@ -42,10 +45,11 @@ def _core(mesh, stations, margin):
     return (sx.min() - margin, sx.max() + margin, sy.min() - margin, sy.max() + margin)
 
 
-def plot_depth_slices(mesh, m, depths, stations, margin=200.0, ref=None, title="", ncols=3):
+def plot_depth_slices(mesh, m, depths, stations, margin=200.0, ref=None, title="", ncols=3,
+                      vmin=None, vmax=None):
     """Plan-view slices of log10 resistivity at the given depths (m)."""
     logr = _log_rho(mesh, m)
-    norm = _norm(logr, ref)
+    norm = _norm(logr, ref, vmin, vmax)
     zc = mesh.zc[mesh.nair:]
     x0, x1, y0, y1 = _core(mesh, stations, margin)
     nrows = int(np.ceil(len(depths) / ncols))
@@ -69,11 +73,11 @@ def plot_depth_slices(mesh, m, depths, stations, margin=200.0, ref=None, title="
 
 
 def plot_sections(mesh, models, stations, along="x", at=0.0, zmax=1500.0, margin=200.0,
-                  titles=None, ref=None):
+                  titles=None, ref=None, vmin=None, vmax=None):
     """Vertical sections through one or several models (e.g. true vs inverted)."""
     models = models if isinstance(models, (list, tuple)) else [models]
     grids = [_log_rho(mesh, m) for m in models]
-    norm = _norm(grids[0], ref)
+    norm = _norm(grids, ref, vmin, vmax)
     zn = mesh.zn[mesh.nair:]
     x0, x1, y0, y1 = _core(mesh, stations, margin)
     fig, axs = plt.subplots(1, len(models), figsize=(4.6 * len(models), 3.6), squeeze=False,
@@ -99,7 +103,8 @@ def plot_sections(mesh, models, stations, along="x", at=0.0, zmax=1500.0, margin
     return fig
 
 
-def plot_3d_conductors(mesh, m, stations, threshold_ohmm, zmax=1500.0, margin=200.0, ax=None):
+def plot_3d_conductors(mesh, m, stations, threshold_ohmm, zmax=1500.0, margin=200.0, ax=None,
+                       ref=None, vmin=None, vmax=None):
     """3D voxel view of all core cells less resistive than `threshold_ohmm`."""
     logr = _log_rho(mesh, m)
     x0, x1, y0, y1 = _core(mesh, stations, margin)
@@ -111,7 +116,7 @@ def plot_3d_conductors(mesh, m, stations, threshold_ohmm, zmax=1500.0, margin=20
     filled = sub < np.log10(threshold_ohmm)
     X, Y, Z = np.meshgrid(mesh.xn[ix[0]:ix[-1] + 2], mesh.yn[iy[0]:iy[-1] + 2],
                           mesh.zn[mesh.nair:][iz[0]:iz[-1] + 2], indexing="ij")
-    norm = _norm(logr)
+    norm = _norm(logr, ref, vmin, vmax)
     colors = RES_CMAP(norm(sub))
     colors[..., 3] = 0.85
     if ax is None:

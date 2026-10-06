@@ -153,15 +153,18 @@ def invert(sim, data, m0=None, m_ref=None, reg=None, target_rms=1.0, max_iter=12
             if verbose:
                 print("no further improvement - stopping")
             break
-        change = np.linalg.norm(m_new - m) / np.sqrt(len(m))
+        rough_old = reg.roughness(m - m_ref)
         m, Z, f, J, r, cur, lam = m_new, Z_n, f_n, J_n, r_n, new, lam_try
         history.append(dict(iter=it, rms=cur, lam=lam, rough=reg.roughness(m - m_ref),
                             time=time.time() - t_start))
         if callback:
             callback(it, m, Z, history)
-        if cur <= target_rms and change < 0.02:
+        rough_new = history[-1]["rough"]
+        if cur <= target_rms and abs(rough_new - rough_old) <= 0.01 * max(rough_old, 1e-12):
             if verbose:
                 print("target reached and model stable - done")
             break
+    if verbose:
+        print(f"total time {time.time() - t_start:.0f} s")
     pred = data.copy(Z=Z)
     return m, pred, history

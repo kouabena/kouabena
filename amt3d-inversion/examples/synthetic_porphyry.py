@@ -58,21 +58,22 @@ plot.export_vtk(mesh, m_inv, os.path.join(out, "model_inverted.vtk"))
 plot.export_vtk(mesh, m_true, os.path.join(out, "model_true.vtk"))
 
 # ---- figures ----------------------------------------------------------------
-ref = 2.0  # log10(100 Ohm.m)
+ref = 2.0  # log10(100 Ohm.m): colour-scale midpoint
+cs = dict(ref=ref, vmin=0.7, vmax=3.0)  # same colour range for every model plot
 figs = {
     "sections_x.png": plot.plot_sections(mesh, [m_true, m0, m_inv], stations, along="x", at=-100,
-                                         zmax=1000, titles=["True", "Start (Bostick)", "Inverted"], ref=ref),
+                                         zmax=1000, titles=["True", "Start (Bostick)", "Inverted"], **cs),
     "sections_y.png": plot.plot_sections(mesh, [m_true, m_inv], stations, along="y", at=0,
-                                         zmax=1000, titles=["True", "Inverted"], ref=ref),
+                                         zmax=1000, titles=["True", "Inverted"], **cs),
     "depth_slices.png": plot.plot_depth_slices(mesh, m_inv, [50, 150, 250, 350, 500, 700], stations,
-                                               ref=ref, title="Inverted model"),
+                                               title="Inverted model", **cs),
     "depth_slices_true.png": plot.plot_depth_slices(mesh, m_true, [50, 150, 250, 350, 500, 700],
-                                                    stations, ref=ref, title="True model"),
+                                                    stations, title="True model", **cs),
     "soundings.png": plot.plot_soundings(obs, pred, stations=[0, 6, 12, 18, 24]),
     "phase_tensors.png": plot.plot_phase_tensors(obs, freq_index=3),
     "convergence.png": plot.plot_convergence(hist),
     "station_rms.png": plot.plot_rms_map(obs, pred),
-    "conductors_3d.png": plot.plot_3d_conductors(mesh, m_inv, stations, threshold_ohmm=30, zmax=800),
+    "conductors_3d.png": plot.plot_3d_conductors(mesh, m_inv, stations, threshold_ohmm=30, zmax=800, **cs),
 }
 for name, fig in figs.items():
     fig.savefig(os.path.join(out, name), dpi=130, bbox_inches="tight")
