@@ -1,0 +1,33 @@
+# Small synthetic problem (runs in ~1-2 minutes) to check an installation.
+project: quick_test
+output_dir: results/quick_test
+seed: 1
+n_jobs: 1
+
+survey:
+  kind: dipole-dipole
+  n_per_line: 12
+  n_lines: 3
+  spacing: 10.0
+  line_spacing: 20.0
+  n_max: 5
+  cross_line: true
+  cross_n_max: 2
+
+waveform: {order: 7, chip_rate: 32.0, oversampling: 4}
+
+synthetic:
+  enabled: true
+  background: {rho0: 100.0, m: 0.01, tau: 0.01, c: 0.5}
+  bodies:
+    - {type: box, xmin: 40, xmax: 70, ymin: 10, ymax: 30, zmin: -20, zmax: -6,
+       rho0: 30.0, m: 0.2, tau: 0.5, c: 0.6}
+  refine: 1
+  n_model_freqs: 9
+  n_periods: 8
+
+processing: {n_bands: 5}
+
+mesh: {dx: 5.0, dz: 2.5, depth: 30, n_pad: 6, pad_factor: 1.5}
+
+inversion: {max_iter: 8}

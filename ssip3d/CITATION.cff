@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "ssip3d: reproducible 3D inversion of spread-spectrum induced polarization data"
+authors:
+  - family-names: Kouabena
+    given-names: Wilfried
+version: 0.1.0
+date-released: 2026-10-06
+license: MIT
+repository-code: "https://github.com/kouabena/kouabena/tree/main/ssip3d"
+keywords: [induced polarization, spectral IP, spread spectrum, m-sequence, 3D inversion, Cole-Cole]

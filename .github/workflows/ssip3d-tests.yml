@@ -1,0 +1,19 @@
+name: ssip3d tests
+on:
+  push:
+    paths: ["ssip3d/**", ".github/workflows/ssip3d-tests.yml"]
+  pull_request:
+    paths: ["ssip3d/**", ".github/workflows/ssip3d-tests.yml"]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ssip3d
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[test]"
+      - run: pytest -q
