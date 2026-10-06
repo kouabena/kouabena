@@ -154,13 +154,16 @@ def invert(sim, data, m0=None, m_ref=None, reg=None, target_rms=1.0, max_iter=12
                 print("no further improvement - stopping")
             break
         rough_old = reg.roughness(m - m_ref)
+        lam_old = lam
         m, Z, f, J, r, cur, lam = m_new, Z_n, f_n, J_n, r_n, new, lam_try
         history.append(dict(iter=it, rms=cur, lam=lam, rough=reg.roughness(m - m_ref),
                             time=time.time() - t_start))
         if callback:
             callback(it, m, Z, history)
         rough_new = history[-1]["rough"]
-        if cur <= target_rms and abs(rough_new - rough_old) <= 0.01 * max(rough_old, 1e-12):
+        settled = abs(rough_new - rough_old) <= 0.01 * max(rough_old, 1e-12) or \
+            (lam_old is not None and abs(lam - lam_old) <= 0.05 * lam_old)
+        if cur <= target_rms and settled:
             if verbose:
                 print("target reached and model stable - done")
             break

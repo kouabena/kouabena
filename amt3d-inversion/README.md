@@ -73,7 +73,28 @@ plot.export_vtk(mesh, m, "model.vtk")
 
 ## Synthetic test results
 
-RESULTS_PLACEHOLDER
+`examples/synthetic_porphyry.py` uses a 5 × 5 station grid (100 m spacing)
+and 6 frequencies from 2 kHz to 6 Hz. The model is a 100 Ω·m host with a 5 Ω·m
+sulphide halo (100–400 m depth) and a 1000 Ω·m core to its east. Synthetic
+data have 3% Gaussian noise and a 3% error floor. The mesh is
+28 × 28 × 23 cells (13,328 inversion cells, about 50 k edge unknowns), and
+there are 1,200 real data.
+
+* Normalised RMS went from 4.30 (Bostick start) to 2.16, 1.20 and 1.00 in
+  **3 iterations**. Later iterations only smooth the model at RMS 1.0.
+* Each iteration (forward + full Jacobian, 6 frequencies) takes about 60 s on
+  a 4-core cloud VM with MKL Pardiso.
+* The halo is recovered in the right place with its top near 100 m. Its
+  minimum resistivity is about 10 Ω·m (true value 5 Ω·m), and it is smeared
+  below 400 m, as expected for a smooth inversion. The resistive core is
+  imaged as a weaker resistive zone.
+
+| | |
+|---|---|
+| ![sections](results/sections_x.png) | |
+| ![slices](results/depth_slices.png) | ![true slices](results/depth_slices_true.png) |
+| ![soundings](results/soundings.png) | ![3D](results/conductors_3d.png) |
+| ![phase tensors](results/phase_tensors.png) | ![convergence](results/convergence.png) |
 
 ## Limitations
 

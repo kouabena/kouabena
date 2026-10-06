@@ -187,7 +187,7 @@ def plot_phase_tensors(data, freq_index=0, ax=None, scale=None):
     ax.set_xlim(st[:, 1].min() - scale, st[:, 1].max() + scale)
     ax.set_ylim(st[:, 0].min() - scale, st[:, 0].max() + scale)
     ax.set_aspect("equal")
-    ax.set_title(f"Phase tensors, {data.freqs[freq_index]:g} Hz", fontsize=10)
+    ax.set_title(f"Phase tensors, {data.freqs[freq_index]:.4g} Hz", fontsize=10)
     ax.set_xlabel("East y (m)"); ax.set_ylabel("North x (m)")
     sm = plt.cm.ScalarMappable(norm=norm, cmap=BETA_CMAP)
     ax.figure.colorbar(sm, ax=ax, label="skew β (°)", shrink=0.8)
