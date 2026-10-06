@@ -203,9 +203,18 @@ def gauss_newton(problem: LogImpedanceProblem, d_obs, err_re, err_im, m0, m_ref=
                          beta_phase=beta_im, phim_amp=phim_re, phim_phase=phim_im))
         log.info(f"{label} it {it:2d}  chi2 amp {fre / N:9.3f}  phase {fim / N:9.3f}  "
                  f"beta {beta_re:.2e}/{beta_im:.2e}")
-        # accept when each misfit lies in the discrepancy window [0.4, 1.1] x target
-        ok_re = 0.4 * target <= fre <= 1.1 * target
-        ok_im = 0.4 * target <= fim <= 1.1 * target
+        # accept when each misfit lies in the discrepancy window [0.4, 1.1] x target;
+        # a part that over-fits is also accepted once warming beta no longer changes it
+        prev = hist[-2] if len(hist) > 1 else None
+
+        def ok(phi, key):
+            if phi > 1.1 * target:
+                return False
+            if phi >= 0.4 * target:
+                return True
+            return prev is not None and abs(phi / N - prev[key]) < 0.1 * prev[key]
+
+        ok_re, ok_im = ok(fre, "chi2_amp"), ok(fim, "chi2_phase")
         if ok_re and ok_im:
             converged = True
             break
