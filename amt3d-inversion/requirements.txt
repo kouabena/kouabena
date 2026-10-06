@@ -1,0 +1,5 @@
+numpy
+scipy
+matplotlib
+# optional, much faster direct solver (Intel MKL Pardiso):
+pypardiso

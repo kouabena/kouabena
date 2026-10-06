@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+amt3d-inversion/results/*.npy
+amt3d-inversion/results/*.vtk
+results_field/
