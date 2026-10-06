@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ssip3d"
+version = "0.1.0"
+description = "Reproducible 3D inversion of spread-spectrum induced polarization (SSIP) data"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "Wilfried Kouabena"}]
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.22", "scipy>=1.8", "matplotlib>=3.5", "pyyaml>=6", "threadpoolctl>=3"]
+keywords = ["geophysics", "induced polarization", "spectral IP", "spread spectrum", "inversion", "3D"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+ssip3d = "ssip3d.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ssip3d = ["examples/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

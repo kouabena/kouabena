@@ -1,0 +1,79 @@
+# Synthetic porphyry Cu-Mo target surveyed with spread-spectrum IP.
+#
+# - pyrite-rich phyllic halo: conductive, strongly chargeable, slow (tau = 1 s)
+# - potassic core (Cu-Mo): moderately chargeable, fast relaxation (tau = 0.03 s)
+# - shallow clay lens: very conductive but NOT chargeable (tests decoupling)
+#
+# The synthetic data are simulated on a finer mesh than the one used for the
+# inversion (refine: 1.5) to avoid an "inverse crime".
+project: synthetic_porphyry
+output_dir: results/synthetic_porphyry
+seed: 2026
+n_jobs: 2
+
+survey:
+  kind: dipole-dipole
+  n_per_line: 24
+  n_lines: 4
+  spacing: 25.0
+  line_spacing: 50.0
+  n_max: 6
+  a_mult: [1, 2]
+  cross_line: true
+  cross_n_max: 3
+
+waveform:            # m-sequence transmitter
+  order: 9           # 511 chips per period
+  chip_rate: 64.0    # Hz  -> period 8 s, usable band ~0.125-47 Hz
+  oversampling: 8    # fs = 512 Hz
+  amplitude: 1.0     # A
+
+synthetic:
+  enabled: true
+  background: {rho0: 500.0, m: 0.02, tau: 0.01, c: 0.5}
+  bodies:
+    - {type: box, xmin: 200, xmax: 400, ymin: 25, ymax: 125, zmin: -75, zmax: -20,
+       rho0: 120.0, m: 0.20, tau: 1.0, c: 0.5}
+    - {type: box, xmin: 262.5, xmax: 337.5, ymin: 50, ymax: 100, zmin: -62.5, zmax: -32.5,
+       rho0: 350.0, m: 0.10, tau: 0.03, c: 0.6}
+    - {type: box, xmin: 450, xmax: 525, ymin: -10, ymax: 60, zmin: -15, zmax: 0,
+       rho0: 40.0, m: 0.005, tau: 0.01, c: 0.5}
+  refine: 1.5
+  n_model_freqs: 11
+  n_periods: 16          # 16 x 8 s = 128 s of stacking per injection
+  noise_rel: 0.02        # sensor noise, relative to signal rms
+  noise_abs: 2.0e-5      # V
+  current_noise: 1.0e-3
+  powerline_amp: 2.0e-3  # V, 50 Hz + odd harmonics
+  drift: 5.0e-3          # V, self-potential drift
+  save_records: [0, 400]
+
+processing:
+  n_bands: 8
+  notch: [50.0]
+
+errors:
+  amp_floor: 0.01      # 1 % amplitude floor (modelling error)
+  phase_floor: 1.0e-3  # 1 mrad phase floor
+  max_err_amp: 0.2
+  max_err_phase: 0.02
+
+mesh:
+  dx: 12.5
+  dz: 6.25
+  depth: 110
+  n_pad: 8
+  pad_factor: 1.4
+  dz_growth: 1.05
+
+inversion:
+  max_iter: 8
+  alpha_s: 1.0e-3
+  sensitivity_weighting: true
+  freq_coupling: 0.0
+
+spectral: {debye: true, cole_cole: true}
+
+report:
+  y_sections: [50.0, 100.0]
+  z_slices: [-45.0]
