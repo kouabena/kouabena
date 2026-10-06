@@ -66,7 +66,7 @@ DEFAULTS = {
         "sensitivity_weighting": True, "sensitivity_floor": 0.05, "cg_maxiter": 100, "max_iter_first": 15,
         "freq_coupling": 0.0, "frequencies": None, "geometric_correction": True,
     },
-    "spectral": {"debye": True, "cole_cole": True, "amp_err": 0.01, "phase_err": 1e-3, "coverage_min": 0.01},
+    "spectral": {"debye": True, "cole_cole": True, "amp_err": 0.01, "phase_err": 1e-3, "coverage_min": 1e-3},
     "report": {"y_sections": None, "z_slices": None, "tau_m_min": 0.03},
 }
 

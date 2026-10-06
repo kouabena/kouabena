@@ -58,6 +58,50 @@ Outputs, in `output_dir`:
 | `model.csv` | x, y, z, every field (for GIS / Leapfrog / Python) |
 | `figures/` | survey, raw records + step response, data fit, convergence, model sections |
 
+## Demo: synthetic porphyry Cu-Mo target (`synthetic_porphyry.yaml`)
+
+The target has three parts:
+- **Phyllic halo**: pyrite-rich, conductive, strongly chargeable, τ = 1 s.
+- **Potassic core**: τ = 0.03 s.
+- **Shallow clay lens**: conductive but *not* chargeable.
+
+The survey is 4 lines × 24 electrodes (25 m spacing, 50 m between lines), recorded as
+dipole-dipole with a = 1, 2 plus cross-line configurations: 1377 four-electrode configurations in total.
+The transmitter is an order-9 m-sequence at a 64 Hz chip rate (8 s period, 16 periods stacked),
+giving 8 frequency bands from 0.18 to 34 Hz.
+
+The noise is realistic: sensor noise, 50 Hz powerline interference with harmonics, and
+self-potential drift. The data are simulated on a finer mesh than the inversion mesh,
+to avoid the "inverse crime".
+
+![model sections](docs/figures/model_sections.png)
+
+Results:
+
+* **Resistivity and chargeability are decoupled.** The clay lens appears as a resistivity low
+  with no chargeability. The halo appears as both a resistivity low and a chargeability high,
+  at the correct position and depth.
+* **The halo's slow relaxation (τ ≈ 1 s) is recovered.** The small fast core is below the
+  resolution of this layout.
+* **The recovered chargeability is overestimated** (≈0.4 vs 0.2). The halo's relaxation peak
+  (τ = 1 s, 0.16 Hz) lies at the low edge of the band, so the Debye total chargeability is
+  partly extrapolated. Use a longer m-sequence period to extend the band down.
+* **Both misfits reach the discrepancy target** at every frequency (χ²/N ≤ 1.02 for amplitude
+  and ≤ 0.68 for phase). Frequency continuation makes the higher frequencies cost 0–7 iterations.
+
+<p float="left">
+<img src="docs/figures/record_0.png" width="49%"/>
+<img src="docs/figures/spectra_fit.png" width="49%"/>
+</p>
+
+Runtime on a 4-core cloud VM:
+
+| stage | time |
+|---|---|
+| 3D simulation (95k cells, 11 frequencies) | 5 min |
+| inversion (48k cells, 10,400 complex parameters, 1359 data × 8 frequencies) | 16 min |
+| spectral analysis and report | 2 min |
+
 ## Using your field data
 
 There are two entry points. Set them in the YAML (`synthetic.enabled: false`):
