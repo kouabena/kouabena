@@ -57,13 +57,13 @@ DEFAULTS = {
     },
     "data": {"spectra_csv": None, "timeseries_npz": None},
     "processing": {"n_bands": 8, "fmin": None, "fmax": None, "notch": [50.0], "skip_periods": 1},
-    "errors": {"amp_floor": 0.01, "phase_floor": 1e-3, "max_err_amp": 0.2, "max_err_phase": 0.02},
+    "errors": {"amp_floor": 0.01, "phase_floor": 1e-3, "phase_rel": 0.0, "max_err_amp": 0.2, "max_err_phase": 0.02},
     "mesh": {"dx": None, "dy": None, "dz": None, "depth": None, "margin": None, "n_pad": 8,
              "pad_factor": 1.4, "dz_growth": 1.05, "topography_csv": None},
     "inversion": {
         "max_iter": 8, "chi_target": 1.0, "beta_ratio": 1.0, "beta_cooling": 2.0, "beta_im_scale": 1.0,
         "alpha_s": 1e-3, "alpha_x": 1.0, "alpha_y": 1.0, "alpha_z": 1.0,
-        "sensitivity_weighting": True, "sensitivity_floor": 0.05, "cg_maxiter": 60,
+        "sensitivity_weighting": True, "sensitivity_floor": 0.05, "cg_maxiter": 100, "max_iter_first": 15,
         "freq_coupling": 0.0, "frequencies": None, "geometric_correction": True,
     },
     "spectral": {"debye": True, "cole_cole": True, "amp_err": 0.01, "phase_err": 1e-3, "coverage_min": 0.01},
@@ -222,7 +222,7 @@ class Pipeline:
         t0 = time.time()
         survey, spec = self._load_data()
         # ---- data selection and error model
-        spec = spec.apply_error_floor(ec["amp_floor"], ec["phase_floor"])
+        spec = spec.apply_error_floor(ec["amp_floor"], ec["phase_floor"], ec["phase_rel"])
         good = (np.all(np.isfinite(spec.Z), 0) & np.all(spec.err_amp < ec["max_err_amp"], 0)
                 & np.all(spec.err_phase < ec["max_err_phase"], 0))
         if ic["frequencies"] is not None:
@@ -248,7 +248,7 @@ class Pipeline:
         log.info(f"  start: rho = {rho_start:.1f} ohm-m, phase = {phase0 * 1e3:.2f} mrad")
         opts = InversionOptions(**{k: ic[k] for k in (
             "max_iter", "chi_target", "beta_ratio", "beta_cooling", "beta_im_scale", "alpha_s", "alpha_x",
-            "alpha_y", "alpha_z", "sensitivity_weighting", "sensitivity_floor", "cg_maxiter")})
+            "alpha_y", "alpha_z", "sensitivity_weighting", "sensitivity_floor", "cg_maxiter", "max_iter_first")})
         results = invert_multifrequency(prob, spec.freqs, d_obs, spec.err_amp, spec.err_phase, m0, opts,
                                         freq_coupling=ic["freq_coupling"])
         M = np.array([r.m for r in results])

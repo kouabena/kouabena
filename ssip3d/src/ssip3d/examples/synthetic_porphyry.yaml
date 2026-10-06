@@ -52,9 +52,10 @@ processing:
   n_bands: 8
   notch: [50.0]
 
-errors:
-  amp_floor: 0.01      # 1 % amplitude floor (modelling error)
-  phase_floor: 1.0e-3  # 1 mrad phase floor
+errors:                # floors added in quadrature to the empirical (stacking) errors
+  amp_floor: 0.03      # 3 % amplitude floor: 3D discretisation / modelling error
+  phase_floor: 1.0e-3  # 1 mrad absolute phase floor
+  phase_rel: 0.05      # + 5 % of |phase| (modelling error scales with the IP response)
   max_err_amp: 0.2
   max_err_phase: 0.02
 
@@ -68,6 +69,7 @@ mesh:
 
 inversion:
   max_iter: 8
+  max_iter_first: 15
   alpha_s: 1.0e-3
   sensitivity_weighting: true
   freq_coupling: 0.0

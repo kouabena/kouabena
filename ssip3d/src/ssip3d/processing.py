@@ -75,10 +75,17 @@ class SpectralData:
             ea[k, i], ep[k, i] = r[7], r[8] * 1e-3
         return cls(freqs, Z, ea, ep)
 
-    def apply_error_floor(self, amp_floor=0.01, phase_floor=1e-3, amp_rel=0.0):
-        """Add floors in quadrature (ln-amplitude floor ~ relative error, phase in rad)."""
-        ea = np.sqrt(self.err_amp ** 2 + amp_floor ** 2 + amp_rel ** 2)
-        ep = np.sqrt(self.err_phase ** 2 + phase_floor ** 2)
+    def apply_error_floor(self, amp_floor=0.01, phase_floor=1e-3, phase_rel=0.0):
+        """Add error floors in quadrature.
+
+        amp_floor  : floor of the ln-amplitude error (~ relative amplitude error)
+        phase_floor: absolute phase floor (rad)
+        phase_rel  : relative phase floor (fraction of |phase|), models the
+                     modelling error, which scales with the IP response
+        """
+        ph = np.abs(np.angle(self.Z * np.sign(self.Z.real)))
+        ea = np.sqrt(self.err_amp ** 2 + amp_floor ** 2)
+        ep = np.sqrt(self.err_phase ** 2 + phase_floor ** 2 + (phase_rel * ph) ** 2)
         return SpectralData(self.freqs, self.Z, ea, ep, self.n_periods)
 
     def select(self, keep_freq=None, keep_data=None):

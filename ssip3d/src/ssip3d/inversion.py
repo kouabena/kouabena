@@ -109,11 +109,12 @@ def _pcg(apply_H, b, precond, maxiter=50, rtol=1e-3):
 @dataclass
 class InversionOptions:
     max_iter: int = 10
+    max_iter_first: int = 15  # iterations allowed for the first (lowest) frequency
     chi_target: float = 1.0  # target misfit per datum (each of amplitude / phase)
     beta_ratio: float = 1.0  # initial beta = ratio * tr(J^T W J) / tr(R^T R)
     beta_cooling: float = 2.0
     beta_im_scale: float = 1.0  # initial beta_im = beta_im_scale * estimate
-    cg_maxiter: int = 60
+    cg_maxiter: int = 100
     cg_rtol: float = 1e-3
     max_step_halvings: int = 6
     lnsig_bounds: tuple = (np.log(1e-5), np.log(10.0))  # bounds of ln|sigma| (S/m)
@@ -158,9 +159,10 @@ def sensitivity_weights(J, wr, wi, floor=0.05):
 
 def gauss_newton(problem: LogImpedanceProblem, d_obs, err_re, err_im, m0, m_ref=None,
                  opts: InversionOptions | None = None, reg: Regularization | None = None,
-                 beta=None, first=None, label=""):
+                 beta=None, first=None, label="", max_iter=None):
     """Run Gauss-Newton for one frequency. Returns :class:`InversionResult`."""
     opts = opts or InversionOptions()
+    max_iter = opts.max_iter if max_iter is None else max_iter
     wr, wi = 1.0 / np.asarray(err_re), 1.0 / np.asarray(err_im)
     N = len(d_obs)
     target = opts.chi_target * N
@@ -194,7 +196,7 @@ def gauss_newton(problem: LogImpedanceProblem, d_obs, err_re, err_im, m0, m_ref=
 
     hist = []
     converged = False
-    for it in range(opts.max_iter + 1):
+    for it in range(max_iter + 1):
         fre, fim = misfits(d)
         phim_re, phim_im = reg.phi(m.real, m_ref.real), reg.phi(m.imag, m_ref.imag)
         hist.append(dict(iter=it, chi2_amp=fre / N, chi2_phase=fim / N, beta_amp=beta_re,
@@ -207,7 +209,7 @@ def gauss_newton(problem: LogImpedanceProblem, d_obs, err_re, err_im, m0, m_ref=
         if ok_re and ok_im:
             converged = True
             break
-        if it == opts.max_iter:
+        if it == max_iter:
             break
         r = d_obs - d
         wres = wr ** 2 * r.real + 1j * (wi ** 2 * r.imag)
@@ -252,11 +254,7 @@ def _update_beta(beta, phi, target, cooling):
     around the discrepancy value.
     """
     if phi > 1.1 * target:
-        if phi > 10 * target:
-            return beta / cooling ** 2
-        if phi > 2 * target:
-            return beta / cooling
-        return beta / np.sqrt(cooling)
+        return beta / (cooling if phi > 2 * target else np.sqrt(cooling))
     if phi < 0.4 * target:
         return beta * min(np.sqrt(target / max(phi, 1e-12)), cooling)
     return beta
@@ -294,7 +292,7 @@ def invert_multifrequency(problem: LogImpedanceProblem, freqs, d_obs, err_re, er
         label = f"[f={freqs[k]:.4g} Hz]"
         if prev is None:
             res = gauss_newton(problem, d_obs[k], err_re[k], err_im[k], m_prev, m_ref=m_prev,
-                               opts=opts, reg=reg, first=first, label=label)
+                               opts=opts, reg=reg, first=first, label=label, max_iter=opts.max_iter_first)
         else:
             res = gauss_newton(problem, d_obs[k], err_re[k], err_im[k], m_prev, m_ref=m_prev,
                                opts=opts, reg=reg_c, beta=(prev.beta_re, prev.beta_im), label=label)

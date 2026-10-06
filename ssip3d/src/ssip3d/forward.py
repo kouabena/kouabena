@@ -19,6 +19,9 @@ sensitivities (Cauchy-Riemann).
 """
 from __future__ import annotations
 
+import os
+from concurrent.futures import ThreadPoolExecutor
+
 import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
@@ -186,22 +189,26 @@ class Simulation:
         c[bad] = 1.0
         return c
 
-    def jacobian_sigma(self, U, cell_weights: sp.spmatrix | None = None, chunk: int = 128):
+    def jacobian_sigma(self, U, cell_weights: sp.spmatrix | None = None, chunk: int = 64):
         """dZ/dsigma (n_data, n_cols) where columns are mesh cells mapped by ``cell_weights``.
 
         ``cell_weights`` is an (n_cells, n_cols) sparse matrix (e.g. diag(sigma) @ P for
         d/d ln sigma on a reduced model); default identity.
         """
         Bm = self.B if cell_weights is None else (self.B @ cell_weights).tocsr()
-        GU = self._gather(self.G @ U)  # (n_edges, n_elec+1)
+        GUt = np.ascontiguousarray(self._gather(self.G @ U).T)  # (n_elec+1, n_edges), row access
         a, b, m, n = self.survey.abmn.T
-        J = np.empty((self.survey.n_data, Bm.shape[1]), dtype=GU.dtype)
         BmT = Bm.T.tocsr()
-        for s in range(0, self.survey.n_data, chunk):
+        J = np.empty((self.survey.n_data, Bm.shape[1]), dtype=GUt.dtype)
+
+        def work(s):
             sl = slice(s, s + chunk)
-            gtx = GU[:, a[sl]] - GU[:, b[sl]]
-            grx = GU[:, m[sl]] - GU[:, n[sl]]
-            J[sl] = -(BmT @ (gtx * grx)).T
+            prod = (GUt[a[sl]] - GUt[b[sl]]) * (GUt[m[sl]] - GUt[n[sl]])
+            J[sl] = -(BmT @ prod.T).T
+
+        # numpy / scipy kernels release the GIL: threads give a near-linear speed-up
+        with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 1)) as ex:
+            list(ex.map(work, range(0, self.survey.n_data, chunk)))
         return J
 
 
